@@ -159,6 +159,7 @@ namespace AutoDraft
         public override IEnumerable<Gizmo> CompGetGizmosExtra()
         {
             if (!AutoDraftSettings.enabled) yield break;
+            if (!(parent is Pawn)) yield break; // Skip corpses
             if (Pawn.Faction != Faction.OfPlayer) yield break;
             if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) yield break;
 
@@ -210,6 +211,7 @@ namespace AutoDraft
 
         public override string CompInspectStringExtra()
         {
+            if (!(parent is Pawn)) return null;
             if (!isSoldier) return null;
             string post = combatPost.IsValid
                 ? "(" + combatPost.x + ", " + combatPost.z + ")"
