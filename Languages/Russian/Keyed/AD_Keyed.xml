@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- Настройки -->
   <AD_Enabled>Включить автопризыв</AD_Enabled>
   <AD_AutoUndraft>Автоотмена призыва после устранения угроз</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>Автоматически снимать призыв с солдат после устранения всех враждебных угроз.</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>Небоевые колонисты бегут в укрытие</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>Пацифисты и небоевые колонисты бегут к ближайшему безопасному крытому месту в домашней зоне.</AD_FleeNonCombatants_Desc>
-  <AD_ShowAlert>Показывать уведомления о призыве/отмене призыва</AD_ShowAlert>
-  <AD_MinSkill>Минимальный навык стрельбы или ближнего боя для статуса солдата</AD_MinSkill>
-  <AD_UndraftDelay>Задержка перед отменой призыва после последней угрозы</AD_UndraftDelay>
-  <AD_ThreatDetected>Автопризыв: {0} солдат призвано! Обнаружены угрозы.</AD_ThreatDetected>
-  <AD_ThreatCleared>Автопризыв: Угрозы устранены. {0} солдат возвращаются к обычным делам.</AD_ThreatCleared>
+  <AD_AutoUndraft_Desc>Солдаты автоматически снимают призыв и возвращаются к работе после устранения всех врагов.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Пацифисты бегут в укрытие</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>При появлении угрозы пацифисты бегут к ближайшему безопасному крытому месту в домашней зоне.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>Показывать уведомления о призыве/отмене</AD_ShowAlert>
+  <AD_UndraftDelay>Задержка перед отменой призыва</AD_UndraftDelay>
+  <AD_MinSkill>Минимальный боевой навык для автосолдата</AD_MinSkill>
+  <AD_AssignHint>Назначайте отдельных колонистов солдатами с помощью кнопки «Солдат» на выбранном колонисте. Назначьте боевые позиции, на которых они будут удерживать оборону при угрозах.</AD_AssignHint>
+
+  <!-- Кнопки (кнопки колониста) -->
+  <AD_ToggleSoldier>Солдат</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>Переключить статус солдата для этого колониста. Солдаты автоматически призываются и идут на боевую позицию при появлении угроз.</AD_ToggleSoldier_Desc>
+  <AD_SetPost>Назначить боевую позицию</AD_SetPost>
+  <AD_SetPost_Desc>Нажмите на место на карте, где этот солдат будет удерживать позицию во время боя.</AD_SetPost_Desc>
+  <AD_SetPost_Current>Боевая позиция: ({0}, {1}). Нажмите для изменения.</AD_SetPost_Current>
+  <AD_ClearPost>Снять позицию</AD_ClearPost>
+  <AD_PostSet>Боевая позиция {0} установлена на ({1}, {2})</AD_PostSet>
+
+  <!-- Текст осмотра -->
+  <AD_SoldierStatus>Солдат -- Позиция: {0}</AD_SoldierStatus>
+  <AD_NoPost>не назначена</AD_NoPost>
+
+  <!-- Уведомления -->
+  <AD_ThreatDetected>Автопризыв: {0} солдат выдвигаются на боевые позиции!</AD_ThreatDetected>
+  <AD_ThreatCleared>Автопризыв: Угрозы устранены. {0} солдат возвращаются к работе.</AD_ThreatCleared>
 </LanguageData>

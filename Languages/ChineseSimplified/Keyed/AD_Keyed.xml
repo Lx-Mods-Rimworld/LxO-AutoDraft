@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- 设置 -->
   <AD_Enabled>启用自动征召</AD_Enabled>
   <AD_AutoUndraft>威胁消除后自动解除征召</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>所有敌对威胁被消灭后，自动解除士兵的征召状态。</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>非战斗人员逃往安全区域</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>和平主义者和非士兵会冲向家园区域内最安全的有屋顶区域。</AD_FleeNonCombatants_Desc>
+  <AD_AutoUndraft_Desc>所有敌人被消灭后，士兵自动解除征召并返回工作岗位。</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>和平主义者逃往安全区域</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>出现威胁时，和平主义者会冲向家园区域内最安全的有屋顶区域。</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>显示征召/解除征召提醒</AD_ShowAlert>
-  <AD_MinSkill>被视为士兵的最低射击或近战技能</AD_MinSkill>
-  <AD_UndraftDelay>最后一个威胁消除后解除征召的延迟时间</AD_UndraftDelay>
-  <AD_ThreatDetected>自动征召：{0} 名士兵已征召！检测到威胁。</AD_ThreatDetected>
-  <AD_ThreatCleared>自动征召：威胁已消除。{0} 名士兵已解除征召。</AD_ThreatCleared>
+  <AD_UndraftDelay>解除征召前的延迟</AD_UndraftDelay>
+  <AD_MinSkill>自动士兵的最低战斗技能</AD_MinSkill>
+  <AD_AssignHint>通过选中殖民者上的"士兵"按钮将其标记为士兵。指定战斗岗位，他们将在威胁出现时驻守该位置。</AD_AssignHint>
+
+  <!-- 操作按钮（殖民者按钮） -->
+  <AD_ToggleSoldier>士兵</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>将此殖民者切换为士兵。士兵会在威胁出现时自动征召并前往战斗岗位。</AD_ToggleSoldier_Desc>
+  <AD_SetPost>设置战斗岗位</AD_SetPost>
+  <AD_SetPost_Desc>点击地图上的一个位置，该士兵将在战斗期间驻守此处。</AD_SetPost_Desc>
+  <AD_SetPost_Current>战斗岗位位于 ({0}, {1})。点击更改。</AD_SetPost_Current>
+  <AD_ClearPost>清除岗位</AD_ClearPost>
+  <AD_PostSet>{0} 的战斗岗位已设置为 ({1}, {2})</AD_PostSet>
+
+  <!-- 检查信息 -->
+  <AD_SoldierStatus>士兵 -- 岗位：{0}</AD_SoldierStatus>
+  <AD_NoPost>未分配</AD_NoPost>
+
+  <!-- 提醒 -->
+  <AD_ThreatDetected>自动征召：{0} 名士兵正前往战斗岗位！</AD_ThreatDetected>
+  <AD_ThreatCleared>自动征召：威胁已消除。{0} 名士兵解除警戒。</AD_ThreatCleared>
 </LanguageData>

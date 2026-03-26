@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- Einstellungen -->
   <AD_Enabled>Automatisches Einziehen aktivieren</AD_Enabled>
   <AD_AutoUndraft>Automatisch absetzen, wenn Bedrohungen beseitigt</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>Soldaten werden automatisch abgesetzt, nachdem alle feindlichen Bedrohungen beseitigt wurden.</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>Nichtkombattanten fliehen in Sicherheit</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>Pazifisten und Nichtsoldaten sprinten zum sichersten überdachten Bereich in eurer Heimatzone.</AD_FleeNonCombatants_Desc>
+  <AD_AutoUndraft_Desc>Soldaten werden automatisch abgesetzt und kehren zur Arbeit zurück, nachdem alle Feinde ausgeschaltet sind.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Pazifisten fliehen in Sicherheit</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Pazifisten sprinten zum sichersten überdachten Bereich in eurer Heimatzone, wenn Bedrohungen auftauchen.</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>Einzugs-/Absetzbenachrichtigungen anzeigen</AD_ShowAlert>
-  <AD_MinSkill>Mindestfertigkeitswert in Schießen oder Nahkampf als Soldat</AD_MinSkill>
-  <AD_UndraftDelay>Verzögerung vor dem Absetzen nach letzter Bedrohung</AD_UndraftDelay>
-  <AD_ThreatDetected>Auto Draft: {0} Soldaten eingezogen! Bedrohungen erkannt.</AD_ThreatDetected>
+  <AD_UndraftDelay>Verzögerung vor dem Absetzen</AD_UndraftDelay>
+  <AD_MinSkill>Mindest-Kampffertigkeit für Auto-Soldat</AD_MinSkill>
+  <AD_AssignHint>Markiere einzelne Kolonisten als Soldaten über den „Soldat"-Knopf bei ausgewählten Kolonisten. Weise Kampfposten zu, an denen sie bei Bedrohungen Position halten.</AD_AssignHint>
+
+  <!-- Gizmos (Knöpfe am Kolonisten) -->
+  <AD_ToggleSoldier>Soldat</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>Diesen Kolonisten als Soldat umschalten. Soldaten werden automatisch eingezogen und gehen zu ihrem Kampfposten, wenn Bedrohungen auftauchen.</AD_ToggleSoldier_Desc>
+  <AD_SetPost>Kampfposten setzen</AD_SetPost>
+  <AD_SetPost_Desc>Klicke auf eine Stelle auf der Karte, an der dieser Soldat während des Kampfes Position halten soll.</AD_SetPost_Desc>
+  <AD_SetPost_Current>Kampfposten bei ({0}, {1}). Klicken zum Ändern.</AD_SetPost_Current>
+  <AD_ClearPost>Posten löschen</AD_ClearPost>
+  <AD_PostSet>Kampfposten von {0} auf ({1}, {2}) gesetzt</AD_PostSet>
+
+  <!-- Inspektionstext -->
+  <AD_SoldierStatus>Soldat -- Posten: {0}</AD_SoldierStatus>
+  <AD_NoPost>nicht zugewiesen</AD_NoPost>
+
+  <!-- Benachrichtigungen -->
+  <AD_ThreatDetected>Auto Draft: {0} Soldaten rücken zu Kampfposten vor!</AD_ThreatDetected>
   <AD_ThreatCleared>Auto Draft: Bedrohungen beseitigt. {0} Soldaten stehen ab.</AD_ThreatCleared>
 </LanguageData>

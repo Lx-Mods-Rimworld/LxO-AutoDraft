@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- 設定 -->
   <AD_Enabled>自動徴兵を有効にする</AD_Enabled>
   <AD_AutoUndraft>脅威が排除されたら自動で徴兵解除</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>すべての敵対的脅威が排除された後、兵士の徴兵を自動的に解除します。</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>非戦闘員を安全な場所へ避難させる</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>平和主義者や非兵士がホームゾーン内の最も安全な屋根のある場所へ走ります。</AD_FleeNonCombatants_Desc>
+  <AD_AutoUndraft_Desc>すべての敵が倒された後、兵士の徴兵を自動的に解除し、通常業務に戻します。</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>平和主義者を安全な場所へ避難させる</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>脅威が現れると、平和主義者がホームゾーン内の最も安全な屋根のある場所へ走ります。</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>徴兵/徴兵解除のアラートを表示</AD_ShowAlert>
-  <AD_MinSkill>兵士と見なす最低射撃または格闘スキル</AD_MinSkill>
-  <AD_UndraftDelay>最後の脅威排除後、徴兵解除までの遅延</AD_UndraftDelay>
-  <AD_ThreatDetected>自動徴兵：{0} 人の兵士を徴兵しました！脅威を検知。</AD_ThreatDetected>
+  <AD_UndraftDelay>徴兵解除までの遅延</AD_UndraftDelay>
+  <AD_MinSkill>自動兵士の最低戦闘スキル</AD_MinSkill>
+  <AD_AssignHint>選択した入植者の「兵士」ボタンで個別に兵士指定ができます。脅威発生時に待機する戦闘配置を割り当ててください。</AD_AssignHint>
+
+  <!-- ギズモ（入植者ボタン） -->
+  <AD_ToggleSoldier>兵士</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>この入植者の兵士指定を切り替えます。兵士は脅威が現れると自動的に徴兵され、戦闘配置に移動します。</AD_ToggleSoldier_Desc>
+  <AD_SetPost>戦闘配置を設定</AD_SetPost>
+  <AD_SetPost_Desc>この兵士が戦闘中に待機する場所をマップ上でクリックしてください。</AD_SetPost_Desc>
+  <AD_SetPost_Current>戦闘配置: ({0}, {1})。クリックで変更。</AD_SetPost_Current>
+  <AD_ClearPost>配置を解除</AD_ClearPost>
+  <AD_PostSet>{0} の戦闘配置を ({1}, {2}) に設定しました</AD_PostSet>
+
+  <!-- 検査テキスト -->
+  <AD_SoldierStatus>兵士 -- 配置: {0}</AD_SoldierStatus>
+  <AD_NoPost>未割り当て</AD_NoPost>
+
+  <!-- アラート -->
+  <AD_ThreatDetected>自動徴兵：{0} 人の兵士が戦闘配置へ移動中！</AD_ThreatDetected>
   <AD_ThreatCleared>自動徴兵：脅威が排除されました。{0} 人の兵士が待機状態に戻ります。</AD_ThreatCleared>
 </LanguageData>

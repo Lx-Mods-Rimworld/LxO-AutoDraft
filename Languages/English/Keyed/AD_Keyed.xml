@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- Settings -->
   <AD_Enabled>Enable Auto Draft</AD_Enabled>
   <AD_AutoUndraft>Auto-undraft when threats cleared</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>Automatically undraft soldiers after all hostile threats are eliminated.</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>Non-combatants flee to safety</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>Pacifists and non-soldiers sprint to the safest roofed area in your home zone.</AD_FleeNonCombatants_Desc>
+  <AD_AutoUndraft_Desc>Soldiers automatically undraft and return to work after all hostiles are down.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Pacifists flee to safety</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Pacifists sprint to the safest roofed area in your home zone when threats appear.</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>Show draft/undraft alerts</AD_ShowAlert>
-  <AD_MinSkill>Minimum shooting or melee to count as soldier</AD_MinSkill>
-  <AD_UndraftDelay>Delay before undrafting after last threat</AD_UndraftDelay>
-  <AD_ThreatDetected>Auto Draft: {0} soldiers drafted! Threats detected.</AD_ThreatDetected>
+  <AD_UndraftDelay>Delay before undrafting</AD_UndraftDelay>
+  <AD_MinSkill>Minimum combat skill for auto-soldier</AD_MinSkill>
+  <AD_AssignHint>Mark individual pawns as soldiers using the "Soldier" button on selected colonists. Assign combat posts where they will hold position during threats.</AD_AssignHint>
+
+  <!-- Gizmos (pawn buttons) -->
+  <AD_ToggleSoldier>Soldier</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>Toggle this pawn as a soldier. Soldiers auto-draft and go to their combat post when threats appear.</AD_ToggleSoldier_Desc>
+  <AD_SetPost>Set Combat Post</AD_SetPost>
+  <AD_SetPost_Desc>Click a location on the map where this soldier will hold position during combat.</AD_SetPost_Desc>
+  <AD_SetPost_Current>Combat post at ({0}, {1}). Click to change.</AD_SetPost_Current>
+  <AD_ClearPost>Clear Post</AD_ClearPost>
+  <AD_PostSet>{0}'s combat post set to ({1}, {2})</AD_PostSet>
+
+  <!-- Inspect string -->
+  <AD_SoldierStatus>Soldier -- Post: {0}</AD_SoldierStatus>
+  <AD_NoPost>not assigned</AD_NoPost>
+
+  <!-- Alerts -->
+  <AD_ThreatDetected>Auto Draft: {0} soldiers moving to combat posts!</AD_ThreatDetected>
   <AD_ThreatCleared>Auto Draft: Threats cleared. {0} soldiers standing down.</AD_ThreatCleared>
 </LanguageData>

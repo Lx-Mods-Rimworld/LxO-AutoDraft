@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
+  <!-- 설정 -->
   <AD_Enabled>자동 징집 활성화</AD_Enabled>
   <AD_AutoUndraft>위협 제거 후 자동 징집 해제</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>모든 적대적 위협이 제거된 후 병사들의 징집을 자동으로 해제합니다.</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>비전투원을 안전한 곳으로 대피</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>평화주의자와 비전투원이 홈 구역 내 가장 안전한 지붕이 있는 장소로 달려갑니다.</AD_FleeNonCombatants_Desc>
+  <AD_AutoUndraft_Desc>모든 적이 쓰러진 후 병사들의 징집을 자동으로 해제하고 업무에 복귀시킵니다.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>평화주의자 안전 대피</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>위협이 나타나면 평화주의자가 홈 구역 내 가장 안전한 지붕이 있는 장소로 달려갑니다.</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>징집/징집 해제 알림 표시</AD_ShowAlert>
-  <AD_MinSkill>병사로 간주할 최소 사격 또는 근접 스킬</AD_MinSkill>
-  <AD_UndraftDelay>마지막 위협 제거 후 징집 해제까지 지연 시간</AD_UndraftDelay>
-  <AD_ThreatDetected>자동 징집: {0}명의 병사가 징집되었습니다! 위협이 감지되었습니다.</AD_ThreatDetected>
+  <AD_UndraftDelay>징집 해제 전 지연 시간</AD_UndraftDelay>
+  <AD_MinSkill>자동 병사의 최소 전투 스킬</AD_MinSkill>
+  <AD_AssignHint>선택한 식민자의 "병사" 버튼으로 개별 병사를 지정하세요. 위협 발생 시 대기할 전투 배치 위치를 할당하세요.</AD_AssignHint>
+
+  <!-- 기즈모 (식민자 버튼) -->
+  <AD_ToggleSoldier>병사</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>이 식민자의 병사 지정을 전환합니다. 병사는 위협이 나타나면 자동으로 징집되어 전투 배치로 이동합니다.</AD_ToggleSoldier_Desc>
+  <AD_SetPost>전투 배치 설정</AD_SetPost>
+  <AD_SetPost_Desc>이 병사가 전투 중 대기할 위치를 지도에서 클릭하세요.</AD_SetPost_Desc>
+  <AD_SetPost_Current>전투 배치: ({0}, {1}). 클릭하여 변경.</AD_SetPost_Current>
+  <AD_ClearPost>배치 해제</AD_ClearPost>
+  <AD_PostSet>{0}의 전투 배치가 ({1}, {2})로 설정되었습니다</AD_PostSet>
+
+  <!-- 검사 텍스트 -->
+  <AD_SoldierStatus>병사 -- 배치: {0}</AD_SoldierStatus>
+  <AD_NoPost>미지정</AD_NoPost>
+
+  <!-- 알림 -->
+  <AD_ThreatDetected>자동 징집: {0}명의 병사가 전투 배치로 이동 중!</AD_ThreatDetected>
   <AD_ThreatCleared>자동 징집: 위협이 제거되었습니다. {0}명의 병사가 대기 상태로 복귀합니다.</AD_ThreatCleared>
 </LanguageData>

@@ -16,24 +16,16 @@ namespace AutoDraft
     {
         public static bool enabled = true;
         public static bool autoUndraft = true;
-        public static bool sendToRallyPoint = false;
         public static bool fleeNonCombatants = true;
         public static bool showAlert = true;
-
-        // Who to draft: by minimum combat skill
-        public static int minShootingOrMelee = 4;
-        // Delay before undrafting after last threat (ticks). 500 = ~8 seconds
         public static int undraftDelay = 500;
 
-        // Per-pawn override stored in MapComponent
         public override void ExposeData()
         {
             Scribe_Values.Look(ref enabled, "enabled", true);
             Scribe_Values.Look(ref autoUndraft, "autoUndraft", true);
-            Scribe_Values.Look(ref sendToRallyPoint, "sendToRallyPoint", false);
             Scribe_Values.Look(ref fleeNonCombatants, "fleeNonCombatants", true);
             Scribe_Values.Look(ref showAlert, "showAlert", true);
-            Scribe_Values.Look(ref minShootingOrMelee, "minShootingOrMelee", 4);
             Scribe_Values.Look(ref undraftDelay, "undraftDelay", 500);
             base.ExposeData();
         }
@@ -53,15 +45,14 @@ namespace AutoDraft
                 "AD_FleeNonCombatants_Desc".Translate());
             l.CheckboxLabeled("AD_ShowAlert".Translate(), ref showAlert);
 
-            l.GapLine();
-            l.Label("AD_MinSkill".Translate() + ": " + minShootingOrMelee);
-            minShootingOrMelee = (int)l.Slider(minShootingOrMelee, 0, 15);
-
             if (autoUndraft)
             {
                 l.Label("AD_UndraftDelay".Translate() + ": " + (undraftDelay / 60f).ToString("F1") + "s");
                 undraftDelay = (int)l.Slider(undraftDelay, 60, 3000);
             }
+
+            l.GapLine();
+            l.Label("AD_AssignHint".Translate());
 
             l.End();
         }
@@ -93,6 +84,16 @@ namespace AutoDraft
         {
             var harmony = new Harmony("Lexxers.AutoDraft");
             harmony.PatchAll(Assembly.GetExecutingAssembly());
+
+            // Add comp to all humanlike pawns
+            foreach (var def in DefDatabase<ThingDef>.AllDefs)
+            {
+                if (def.race == null || def.race.intelligence != Intelligence.Humanlike) continue;
+                if (def.comps == null) continue;
+                if (def.comps.Any(c => c is CompProperties_Soldier)) continue;
+                def.comps.Add(new CompProperties_Soldier());
+            }
+
             Log.Message("[AutoDraft] Initialized.");
         }
     }
@@ -107,60 +108,133 @@ namespace AutoDraft
         }
     }
 
-    // ==================== CORE LOGIC ====================
+    // ==================== PER-PAWN SOLDIER COMP ====================
+
+    public class CompProperties_Soldier : CompProperties
+    {
+        public CompProperties_Soldier() { compClass = typeof(CompSoldier); }
+    }
+
+    /// <summary>
+    /// Per-pawn component: marks a pawn as a soldier with an assigned combat post.
+    /// </summary>
+    public class CompSoldier : ThingComp
+    {
+        public bool isSoldier;
+        public IntVec3 combatPost = IntVec3.Invalid;
+        public bool autoDrafted; // Was this pawn drafted by us?
+
+        public Pawn Pawn => (Pawn)parent;
+
+        public override void PostExposeData()
+        {
+            base.PostExposeData();
+            Scribe_Values.Look(ref isSoldier, "ad_isSoldier", false);
+            Scribe_Values.Look(ref combatPost, "ad_combatPost", IntVec3.Invalid);
+            Scribe_Values.Look(ref autoDrafted, "ad_autoDrafted", false);
+        }
+
+        public override IEnumerable<Gizmo> CompGetGizmosExtra()
+        {
+            if (!AutoDraftSettings.enabled) yield break;
+            if (Pawn.Faction != Faction.OfPlayer) yield break;
+            if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) yield break;
+
+            // Toggle soldier status
+            yield return new Command_Toggle
+            {
+                defaultLabel = "AD_ToggleSoldier".Translate(),
+                defaultDesc = "AD_ToggleSoldier_Desc".Translate(),
+                isActive = () => isSoldier,
+                toggleAction = () => isSoldier = !isSoldier,
+                icon = ContentFinder<Texture2D>.Get("UI/Commands/Draft", true)
+            };
+
+            // Set combat post (only if soldier)
+            if (isSoldier)
+            {
+                yield return new Command_Action
+                {
+                    defaultLabel = "AD_SetPost".Translate(),
+                    defaultDesc = combatPost.IsValid
+                        ? "AD_SetPost_Current".Translate(combatPost.x, combatPost.z)
+                        : "AD_SetPost_Desc".Translate(),
+                    action = () =>
+                    {
+                        Find.Targeter.BeginTargeting(
+                            new TargetingParameters { canTargetLocations = true },
+                            (LocalTargetInfo target) =>
+                            {
+                                combatPost = target.Cell;
+                                Messages.Message("AD_PostSet".Translate(Pawn.LabelShort, combatPost.x, combatPost.z),
+                                    Pawn, MessageTypeDefOf.NeutralEvent, false);
+                            });
+                    },
+                    icon = ContentFinder<Texture2D>.Get("UI/Commands/Attack", true)
+                };
+
+                // Clear combat post
+                if (combatPost.IsValid)
+                {
+                    yield return new Command_Action
+                    {
+                        defaultLabel = "AD_ClearPost".Translate(),
+                        action = () => combatPost = IntVec3.Invalid,
+                        icon = ContentFinder<Texture2D>.Get("UI/Commands/Halt", true)
+                    };
+                }
+            }
+        }
+
+        public override string CompInspectStringExtra()
+        {
+            if (!isSoldier) return null;
+            string post = combatPost.IsValid
+                ? "(" + combatPost.x + ", " + combatPost.z + ")"
+                : (string)"AD_NoPost".Translate();
+            return "AD_SoldierStatus".Translate(post);
+        }
+    }
+
+    // ==================== MAP COMPONENT ====================
 
     public class MapComponent_AutoDraft : MapComponent
     {
-        // State tracking
         private bool threatActive;
         private int lastThreatTick = -9999;
-
-        // Track which pawns WE drafted (so we only undraft those)
-        private HashSet<int> autoDraftedPawnIDs = new HashSet<int>();
-
-        // Track pawns the player manually undrafted during auto-draft
-        // (don't re-draft them)
-        private HashSet<int> playerUndraftedIDs = new HashSet<int>();
-
-        // Per-pawn exclude from auto-draft
-        public HashSet<int> excludedPawnIDs = new HashSet<int>();
 
         public MapComponent_AutoDraft(Map map) : base(map) { }
 
         public override void MapComponentTick()
         {
             if (!AutoDraftSettings.enabled) return;
-            if (Find.TickManager.TicksGame % 60 != 0) return; // Check every second
+            if (Find.TickManager.TicksGame % 60 != 0) return;
 
             bool threatsNow = HasHostileThreats();
 
             if (threatsNow && !threatActive)
             {
-                // Threat just appeared -- DRAFT
+                // Threat just appeared
                 threatActive = true;
                 lastThreatTick = Find.TickManager.TicksGame;
-                playerUndraftedIDs.Clear();
-                DraftSoldiers();
+                ActivateSoldiers();
                 if (AutoDraftSettings.fleeNonCombatants)
                     FleeNonCombatants();
             }
             else if (threatsNow)
             {
-                // Threat ongoing -- track timing
                 lastThreatTick = Find.TickManager.TicksGame;
-
-                // Check if player manually undrafted any of our auto-drafted pawns
-                TrackPlayerUndrafts();
+                // Keep soldiers at posts if they wandered
+                EnforcePosts();
             }
             else if (!threatsNow && threatActive)
             {
-                // Threats gone -- start undraft timer
-                int ticksSinceThreat = Find.TickManager.TicksGame - lastThreatTick;
-                if (ticksSinceThreat >= AutoDraftSettings.undraftDelay)
+                int ticksSince = Find.TickManager.TicksGame - lastThreatTick;
+                if (ticksSince >= AutoDraftSettings.undraftDelay)
                 {
                     threatActive = false;
                     if (AutoDraftSettings.autoUndraft)
-                        UndraftSoldiers();
+                        DeactivateSoldiers();
                 }
             }
         }
@@ -176,20 +250,30 @@ namespace AutoDraft
             return false;
         }
 
-        private void DraftSoldiers()
+        private void ActivateSoldiers()
         {
             int drafted = 0;
 
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
-                if (pawn.Drafted) continue; // Already drafted by player
-                if (excludedPawnIDs.Contains(pawn.thingIDNumber)) continue;
-                if (!IsSoldier(pawn)) continue;
+                if (pawn.Drafted) continue; // Player already drafted them
 
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp == null || !comp.isSoldier) continue;
+
+                // Draft the soldier
                 pawn.drafter.Drafted = true;
-                autoDraftedPawnIDs.Add(pawn.thingIDNumber);
+                comp.autoDrafted = true;
                 drafted++;
+
+                // Send to combat post if assigned
+                if (comp.combatPost.IsValid && comp.combatPost.InBounds(map))
+                {
+                    Job gotoPost = JobMaker.MakeJob(JobDefOf.Goto, comp.combatPost);
+                    gotoPost.locomotionUrgency = LocomotionUrgency.Sprint;
+                    pawn.jobs.TryTakeOrderedJob(gotoPost, JobTag.DraftedOrder);
+                }
             }
 
             if (drafted > 0 && AutoDraftSettings.showAlert)
@@ -199,23 +283,55 @@ namespace AutoDraft
             }
         }
 
-        private void UndraftSoldiers()
+        /// <summary>
+        /// Keep soldiers at their posts. If they finished their goto and are idle,
+        /// they'll auto-attack enemies in range (vanilla drafted behavior).
+        /// If they wandered off, send them back.
+        /// </summary>
+        private void EnforcePosts()
+        {
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            {
+                if (pawn.Dead || pawn.Downed || !pawn.Drafted) continue;
+
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp == null || !comp.autoDrafted) continue;
+                if (!comp.combatPost.IsValid) continue;
+
+                // If pawn has no job (idle at post), they auto-attack. Good.
+                if (pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait_Combat)
+                    continue;
+
+                // If pawn is too far from post, send them back
+                if (pawn.Position.DistanceTo(comp.combatPost) > 5f)
+                {
+                    // Only re-send if they're not already going there
+                    if (pawn.CurJob?.def != JobDefOf.Goto
+                        || pawn.CurJob?.targetA.Cell != comp.combatPost)
+                    {
+                        Job gotoPost = JobMaker.MakeJob(JobDefOf.Goto, comp.combatPost);
+                        gotoPost.locomotionUrgency = LocomotionUrgency.Sprint;
+                        pawn.jobs.TryTakeOrderedJob(gotoPost, JobTag.DraftedOrder);
+                    }
+                }
+            }
+        }
+
+        private void DeactivateSoldiers()
         {
             int undrafted = 0;
 
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
-                if (pawn.Dead || pawn.Downed) continue;
-                if (!pawn.Drafted) continue;
-                if (!autoDraftedPawnIDs.Contains(pawn.thingIDNumber)) continue;
+                if (pawn.Dead || pawn.Downed || !pawn.Drafted) continue;
 
-                // Don't undraft if player already took manual control and re-drafted
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp == null || !comp.autoDrafted) continue;
+
                 pawn.drafter.Drafted = false;
+                comp.autoDrafted = false;
                 undrafted++;
             }
-
-            autoDraftedPawnIDs.Clear();
-            playerUndraftedIDs.Clear();
 
             if (undrafted > 0 && AutoDraftSettings.showAlert)
             {
@@ -224,102 +340,64 @@ namespace AutoDraft
             }
         }
 
-        /// <summary>
-        /// Track if the player manually undrafted a pawn we auto-drafted.
-        /// Don't re-draft those pawns.
-        /// </summary>
-        private void TrackPlayerUndrafts()
-        {
-            var toRemove = new List<int>();
-            foreach (int id in autoDraftedPawnIDs)
-            {
-                Pawn pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(
-                    p => p.thingIDNumber == id);
-                if (pawn == null) continue;
-
-                // If we drafted them but they're no longer drafted, player undrafted them
-                if (!pawn.Drafted && !pawn.Downed && !pawn.Dead)
-                {
-                    playerUndraftedIDs.Add(id);
-                    toRemove.Add(id);
-                }
-            }
-            foreach (int id in toRemove)
-                autoDraftedPawnIDs.Remove(id);
-        }
-
         private void FleeNonCombatants()
         {
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed || pawn.Drafted) continue;
-                if (IsSoldier(pawn)) continue; // Soldiers fight, not flee
-                if (pawn.WorkTagIsDisabled(WorkTags.Violent)) // Pacifists always flee
+
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp != null && comp.isSoldier) continue; // Soldiers fight
+
+                if (!pawn.WorkTagIsDisabled(WorkTags.Violent)) continue; // Only flee pacifists
+
+                IntVec3 safeSpot = FindSafeSpot(pawn);
+                if (safeSpot.IsValid)
                 {
-                    // Find safe spot and send there
-                    IntVec3 safeSpot = FindSafeSpot(pawn);
-                    if (safeSpot.IsValid)
-                    {
-                        Job fleeJob = JobMaker.MakeJob(JobDefOf.Goto, safeSpot);
-                        fleeJob.locomotionUrgency = LocomotionUrgency.Sprint;
-                        pawn.jobs.TryTakeOrderedJob(fleeJob, JobTag.Misc);
-                    }
+                    Job flee = JobMaker.MakeJob(JobDefOf.Goto, safeSpot);
+                    flee.locomotionUrgency = LocomotionUrgency.Sprint;
+                    pawn.jobs.TryTakeOrderedJob(flee, JobTag.Misc);
                 }
             }
         }
 
         private IntVec3 FindSafeSpot(Pawn pawn)
         {
-            // Find a roofed cell in home zone far from threats
+            IntVec3 threatCenter = GetThreatCenter();
+            if (!threatCenter.IsValid) return pawn.Position;
+
             IntVec3 bestCell = IntVec3.Invalid;
             float bestDist = 0f;
 
-            // Find average threat position
-            IntVec3 threatCenter = IntVec3.Invalid;
-            int threatCount = 0;
-            foreach (Pawn threat in map.mapPawns.AllPawnsSpawned)
-            {
-                if (threat.Dead || threat.Downed) continue;
-                if (!threat.HostileTo(Faction.OfPlayer)) continue;
-                if (!threatCenter.IsValid)
-                    threatCenter = threat.Position;
-                else
-                    threatCenter = new IntVec3(
-                        (threatCenter.x * threatCount + threat.Position.x) / (threatCount + 1),
-                        0,
-                        (threatCenter.z * threatCount + threat.Position.z) / (threatCount + 1));
-                threatCount++;
-            }
-
-            if (!threatCenter.IsValid) return pawn.Position;
-
-            // Search for roofed cell in home zone far from threats
             foreach (IntVec3 cell in map.areaManager.Home.ActiveCells)
             {
                 if (!cell.Roofed(map)) continue;
                 if (!cell.Standable(map)) continue;
                 if (!pawn.CanReach(cell, PathEndMode.OnCell, Danger.Some)) continue;
 
-                float distToThreat = cell.DistanceTo(threatCenter);
-                if (distToThreat > bestDist)
+                float dist = cell.DistanceTo(threatCenter);
+                if (dist > bestDist)
                 {
-                    bestDist = distToThreat;
+                    bestDist = dist;
                     bestCell = cell;
                 }
             }
-
             return bestCell;
         }
 
-        private bool IsSoldier(Pawn pawn)
+        private IntVec3 GetThreatCenter()
         {
-            if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return false;
-            if (pawn.skills == null) return false;
-
-            int shooting = pawn.skills.GetSkill(SkillDefOf.Shooting)?.Level ?? 0;
-            int melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
-
-            return Math.Max(shooting, melee) >= AutoDraftSettings.minShootingOrMelee;
+            int x = 0, z = 0, count = 0;
+            foreach (Pawn p in map.mapPawns.AllPawnsSpawned)
+            {
+                if (p.Dead || p.Downed) continue;
+                if (!p.HostileTo(Faction.OfPlayer)) continue;
+                x += p.Position.x;
+                z += p.Position.z;
+                count++;
+            }
+            if (count == 0) return IntVec3.Invalid;
+            return new IntVec3(x / count, 0, z / count);
         }
 
         public override void ExposeData()
@@ -327,12 +405,6 @@ namespace AutoDraft
             base.ExposeData();
             Scribe_Values.Look(ref threatActive, "ad_threatActive", false);
             Scribe_Values.Look(ref lastThreatTick, "ad_lastThreatTick", -9999);
-            Scribe_Collections.Look(ref autoDraftedPawnIDs, "ad_autoDrafted", LookMode.Value);
-            Scribe_Collections.Look(ref excludedPawnIDs, "ad_excluded", LookMode.Value);
-            Scribe_Collections.Look(ref playerUndraftedIDs, "ad_playerUndrafted", LookMode.Value);
-            if (autoDraftedPawnIDs == null) autoDraftedPawnIDs = new HashSet<int>();
-            if (excludedPawnIDs == null) excludedPawnIDs = new HashSet<int>();
-            if (playerUndraftedIDs == null) playerUndraftedIDs = new HashSet<int>();
         }
     }
 }

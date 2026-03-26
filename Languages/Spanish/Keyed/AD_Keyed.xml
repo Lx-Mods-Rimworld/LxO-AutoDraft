@@ -1,13 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
-  <AD_Enabled>Activar reclutamiento automático</AD_Enabled>
-  <AD_AutoUndraft>Desreclutar automáticamente al eliminar amenazas</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>Desreclutar automáticamente a los soldados después de eliminar todas las amenazas hostiles.</AD_AutoUndraft_Desc>
-  <AD_FleeNonCombatants>Los no combatientes huyen a un lugar seguro</AD_FleeNonCombatants>
-  <AD_FleeNonCombatants_Desc>Los pacifistas y no soldados corren hacia la zona techada más segura dentro de tu zona hogar.</AD_FleeNonCombatants_Desc>
+  <!-- Ajustes -->
+  <AD_Enabled>Activar reclutamiento automatico</AD_Enabled>
+  <AD_AutoUndraft>Desreclutar automaticamente al eliminar amenazas</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Los soldados se desreclutan automaticamente y vuelven al trabajo cuando todos los hostiles han caido.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Los pacifistas huyen a un lugar seguro</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Los pacifistas corren hacia la zona techada mas segura de tu zona hogar cuando aparecen amenazas.</AD_FleeNonCombatants_Desc>
   <AD_ShowAlert>Mostrar alertas de reclutamiento/desreclutamiento</AD_ShowAlert>
-  <AD_MinSkill>Habilidad mínima de disparo o cuerpo a cuerpo para contar como soldado</AD_MinSkill>
-  <AD_UndraftDelay>Retraso antes de desreclutar tras la última amenaza</AD_UndraftDelay>
-  <AD_ThreatDetected>Reclutamiento automático: ¡{0} soldados reclutados! Amenazas detectadas.</AD_ThreatDetected>
-  <AD_ThreatCleared>Reclutamiento automático: Amenazas eliminadas. {0} soldados vuelven a sus tareas.</AD_ThreatCleared>
+  <AD_UndraftDelay>Retraso antes de desreclutar</AD_UndraftDelay>
+  <AD_MinSkill>Habilidad de combate minima para auto-soldado</AD_MinSkill>
+  <AD_AssignHint>Marca colonos individuales como soldados usando el boton "Soldado" en los colonos seleccionados. Asigna puestos de combate donde mantendran posicion durante las amenazas.</AD_AssignHint>
+
+  <!-- Botones (botones del colono) -->
+  <AD_ToggleSoldier>Soldado</AD_ToggleSoldier>
+  <AD_ToggleSoldier_Desc>Alternar este colono como soldado. Los soldados se reclutan automaticamente y van a su puesto de combate cuando aparecen amenazas.</AD_ToggleSoldier_Desc>
+  <AD_SetPost>Establecer puesto de combate</AD_SetPost>
+  <AD_SetPost_Desc>Haz clic en una ubicacion del mapa donde este soldado mantendra posicion durante el combate.</AD_SetPost_Desc>
+  <AD_SetPost_Current>Puesto de combate en ({0}, {1}). Haz clic para cambiar.</AD_SetPost_Current>
+  <AD_ClearPost>Borrar puesto</AD_ClearPost>
+  <AD_PostSet>Puesto de combate de {0} establecido en ({1}, {2})</AD_PostSet>
+
+  <!-- Texto de inspeccion -->
+  <AD_SoldierStatus>Soldado -- Puesto: {0}</AD_SoldierStatus>
+  <AD_NoPost>no asignado</AD_NoPost>
+
+  <!-- Alertas -->
+  <AD_ThreatDetected>Reclutamiento automatico: {0} soldados se dirigen a sus puestos de combate!</AD_ThreatDetected>
+  <AD_ThreatCleared>Reclutamiento automatico: Amenazas eliminadas. {0} soldados vuelven a sus tareas.</AD_ThreatCleared>
 </LanguageData>
