@@ -733,19 +733,113 @@ namespace AutoDraft
                         continue;
                     }
 
-                    if (dist <= 1.5f)
+                    // Melee soldiers with ranged sidearm: shoot while enemy approaches, melee when close
+                    ThingWithComps invRanged = null;
+                    float invRangedRange = 0f;
+                    if (!hasRangedWeapon)
+                    {
+                        foreach (Thing item in pawn.inventory.innerContainer)
+                        {
+                            if (item.def.IsRangedWeapon && item is ThingWithComps twc)
+                            {
+                                float r = item.def.Verbs?.FirstOrDefault()?.range ?? 0f;
+                                if (r > invRangedRange)
+                                {
+                                    invRanged = twc;
+                                    invRangedRange = r;
+                                }
+                            }
+                        }
+                    }
+
+                    // Analyze enemy weapon type for smart decisions
+                    Pawn enemyPawn = enemy as Pawn;
+                    bool enemyHasRanged = enemyPawn?.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+                    bool enemyHasMelee = !enemyHasRanged;
+
+                    // === MELEE SOLDIER WITH RANGED SIDEARM: SMART WEAPON SWITCHING ===
+                    if (!hasRangedWeapon && invRanged != null)
+                    {
+                        if (enemyHasMelee && dist > 5f && dist <= invRangedRange)
+                        {
+                            // Enemy has melee, still far: shoot him while he runs at us
+                            if (pawn.equipment?.Primary?.def?.IsRangedWeapon != true)
+                                SwapToRanged(pawn, invRanged);
+                            GarrisonDebug.Log("[Garrison]   -> SHOOT (sidearm, enemy melee approaching) "
+                                + enemy.LabelShort + " dist=" + dist.ToString("F0"));
+                            Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
+                            pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
+                        }
+                        else if (enemyHasRanged && dist <= 5f)
+                        {
+                            // Enemy has ranged, close: charge with melee (ranged is weak at close range)
+                            if (pawn.equipment?.Primary?.def?.IsRangedWeapon == true)
+                                SwapToMelee(pawn);
+                            GarrisonDebug.Log("[Garrison]   -> CHARGE (melee vs ranged close) " + enemy.LabelShort);
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (enemyHasRanged && dist > 5f && dist <= invRangedRange)
+                        {
+                            // Enemy has ranged, far: shoot back with sidearm
+                            if (pawn.equipment?.Primary?.def?.IsRangedWeapon != true)
+                                SwapToRanged(pawn, invRanged);
+                            GarrisonDebug.Log("[Garrison]   -> SHOOT (sidearm, ranged duel) "
+                                + enemy.LabelShort + " dist=" + dist.ToString("F0"));
+                            Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
+                            pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
+                        }
+                        else if (dist <= 5f)
+                        {
+                            // Close range: melee weapon
+                            if (pawn.equipment?.Primary?.def?.IsRangedWeapon == true)
+                                SwapToMelee(pawn);
+                            GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (dist <= 10f || meleeAndColonistInDanger)
+                        {
+                            // Charge range or colonist in danger
+                            if (pawn.equipment?.Primary?.def?.IsRangedWeapon == true)
+                                SwapToMelee(pawn);
+                            GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort
+                                + (meleeAndColonistInDanger ? " (colonist under fire!)" : ""));
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                    }
+                    // === MELEE SOLDIER WITHOUT RANGED SIDEARM ===
+                    else if (!hasRangedWeapon)
+                    {
+                        if (dist <= 1.5f)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (dist <= 10f || meleeAndColonistInDanger)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort
+                                + (meleeAndColonistInDanger ? " (colonist under fire!)" : " (close)"));
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                    }
+                    // === RANGED SOLDIER (primary ranged) ===
+                    else if (dist <= 1.5f)
                     {
                         GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
-                    else if (dist <= weaponRange && hasRangedWeapon)
+                    else if (dist <= weaponRange)
                     {
                         GarrisonDebug.Log("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
-                    else if (hasRangedWeapon && dist <= weaponRange + 10f)
+                    else if (dist <= weaponRange + 10f)
                     {
                         IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
                         if (kitePos.IsValid)
@@ -755,13 +849,6 @@ namespace AutoDraft
                             moveJob.locomotionUrgency = LocomotionUrgency.Sprint;
                             pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
                         }
-                    }
-                    else if (!hasRangedWeapon && dist <= 10f)
-                    {
-                        // Melee: only charge if enemy is close (self-defense or already engaged)
-                        GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee, close)");
-                        Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                        pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else
                     {
@@ -849,6 +936,55 @@ namespace AutoDraft
                 return target;
 
             return IntVec3.Invalid;
+        }
+
+        /// <summary>
+        /// Swap melee soldier to ranged sidearm from inventory.
+        /// </summary>
+        private void SwapToRanged(Pawn pawn, ThingWithComps rangedWeapon)
+        {
+            try
+            {
+                ThingWithComps melee = pawn.equipment?.Primary;
+                if (melee != null)
+                {
+                    pawn.equipment.TryTransferEquipmentToContainer(melee, pawn.inventory.innerContainer);
+                }
+                pawn.inventory.innerContainer.Remove(rangedWeapon);
+                pawn.equipment.AddEquipment(rangedWeapon);
+                GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " swapped to ranged: " + rangedWeapon.def.defName);
+            }
+            catch (Exception ex) { GarrisonDebug.Log("[Garrison] SwapToRanged failed: " + ex.Message); }
+        }
+
+        /// <summary>
+        /// Swap ranged sidearm back to inventory, equip melee from inventory.
+        /// </summary>
+        private void SwapToMelee(Pawn pawn)
+        {
+            try
+            {
+                ThingWithComps ranged = pawn.equipment?.Primary;
+                if (ranged == null || !ranged.def.IsRangedWeapon) return;
+
+                // Find melee weapon in inventory
+                ThingWithComps melee = null;
+                foreach (Thing item in pawn.inventory.innerContainer)
+                {
+                    if (item.def.IsMeleeWeapon && item is ThingWithComps twc)
+                    {
+                        melee = twc;
+                        break;
+                    }
+                }
+                if (melee == null) return;
+
+                pawn.equipment.TryTransferEquipmentToContainer(ranged, pawn.inventory.innerContainer);
+                pawn.inventory.innerContainer.Remove(melee);
+                pawn.equipment.AddEquipment(melee);
+                GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " swapped to melee: " + melee.def.defName);
+            }
+            catch (Exception ex) { GarrisonDebug.Log("[Garrison] SwapToMelee failed: " + ex.Message); }
         }
 
         private Thing FindNearestEnemy(Pawn soldier)
