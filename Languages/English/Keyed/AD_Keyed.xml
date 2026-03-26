@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
   <!-- Settings -->
-  <AD_Enabled>Enable Auto Draft</AD_Enabled>
+  <AD_Enabled>Enable Garrison</AD_Enabled>
   <AD_AutoUndraft>Stand down when threats cleared</AD_AutoUndraft>
   <AD_AutoUndraft_Desc>Soldiers return to work after all hostiles are eliminated.</AD_AutoUndraft_Desc>
   <AD_FleeNonCombatants>Pacifists flee to safety</AD_FleeNonCombatants>
@@ -31,6 +31,6 @@
   <AD_NoPost>not assigned</AD_NoPost>
 
   <!-- Alerts -->
-  <AD_ThreatDetected>Auto Draft: {0} soldiers moving to combat posts!</AD_ThreatDetected>
-  <AD_ThreatCleared>Auto Draft: Threats cleared. {0} soldiers standing down.</AD_ThreatCleared>
+  <AD_ThreatDetected>Garrison: {0} soldiers moving to combat posts!</AD_ThreatDetected>
+  <AD_ThreatCleared>Garrison: Threats cleared. {0} soldiers standing down.</AD_ThreatCleared>
 </LanguageData>

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>LxO - Auto Draft</name>
+  <name>LxO - Garrison</name>
   <author>Lexxers</author>
   <url>https://github.com/Lx-Mods-Rimworld/LxO-AutoDraft</url>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <packageId>Lexxers.AutoDraft</packageId>
+  <packageId>Lexxers.Garrison</packageId>
   <description>Automatically drafts your soldiers when threats appear and undrafts them when the danger is over.
 
 Configure which pawns are soldiers via the settings. When a raid, manhunter pack, or other hostile event hits, soldiers are instantly drafted and sent to rally points. Non-combatants flee to safety.

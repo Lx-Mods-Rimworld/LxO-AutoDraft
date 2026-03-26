@@ -93,7 +93,7 @@ namespace AutoDraft
             AutoDraftSettings.DrawSettings(inRect);
         }
 
-        public override string SettingsCategory() => "LxO - Auto Draft";
+        public override string SettingsCategory() => "LxO - Garrison";
     }
 
     // ==================== HARMONY ====================

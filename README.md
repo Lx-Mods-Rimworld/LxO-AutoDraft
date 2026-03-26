@@ -1,4 +1,4 @@
-# LxO - Auto Draft
+# LxO - Garrison
 
 Automatically drafts soldiers when threats appear and undrafts them when the danger is over. Non-combatants flee to safety.
 
