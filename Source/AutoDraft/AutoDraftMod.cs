@@ -389,10 +389,32 @@ namespace AutoDraft
                 {
                     Job stripJob = JobMaker.MakeJob(JobDefOf.Strip, target);
                     soldier.jobs.TryTakeOrderedJob(stripJob, JobTag.Misc);
-                    return; // Next tick will capture or kill after stripping
+
+                    // Queue the follow-up job so it happens immediately after strip
+                    if (canCapture)
+                    {
+                        Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
+                        if (bed != null)
+                        {
+                            Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
+                            soldier.jobs.jobQueue.EnqueueFirst(captureJob);
+                        }
+                        else if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
+                        {
+                            Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+                            soldier.jobs.jobQueue.EnqueueFirst(killJob);
+                        }
+                    }
+                    else if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
+                    {
+                        Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+                        soldier.jobs.jobQueue.EnqueueFirst(killJob);
+                    }
+                    return;
                 }
             }
 
+            // No strip needed (or already stripped) -- capture or kill directly
             if (canCapture)
             {
                 Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
