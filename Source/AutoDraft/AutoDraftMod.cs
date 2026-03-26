@@ -250,9 +250,11 @@ namespace AutoDraft
                 lastThreatTick = Find.TickManager.TicksGame;
                 EnforcePosts();
             }
-            else if (!standingThreats && downedHostiles && threatActive)
+            else if (!standingThreats && downedHostiles)
             {
                 // All enemies down but alive -- hunt them down and finish them
+                // Runs regardless of threatActive (handles save/load with existing downed enemies)
+                if (!threatActive) threatActive = true; // Re-activate for downed cleanup
                 FinishOffDowned();
             }
             else if (!standingThreats && !downedHostiles && threatActive)
