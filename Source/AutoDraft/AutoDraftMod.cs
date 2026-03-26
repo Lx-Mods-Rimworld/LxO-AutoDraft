@@ -119,6 +119,32 @@ namespace AutoDraft
         }
     }
 
+    /// <summary>
+    /// Block FleeAndCower for active soldiers. Soldiers fight, not flee.
+    /// </summary>
+    [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob))]
+    public static class Patch_BlockFlee
+    {
+        public static bool Prefix(Pawn_JobTracker __instance, Job newJob)
+        {
+            try
+            {
+                if (newJob?.def != JobDefOf.FleeAndCower) return true;
+
+                Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
+                if (pawn == null) return true;
+
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp == null || !comp.isSoldier || !comp.autoDrafted) return true;
+
+                // Soldier should fight, not flee. Block the flee job.
+                Log.Message("[Garrison] BLOCKED flee for soldier " + pawn.LabelShort);
+                return false;
+            }
+            catch { return true; }
+        }
+    }
+
     [HarmonyPatch(typeof(Map), nameof(Map.FinalizeInit))]
     public static class Patch_MapInit
     {
@@ -555,13 +581,11 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Don't interrupt ANY active job -- let current action complete
-                // Only give new orders when the pawn is truly idle
-                if (pawn.CurJob != null
-                    && pawn.CurJob.def != JobDefOf.Wait
-                    && pawn.CurJob.def != JobDefOf.Wait_MaintainPosture
-                    && pawn.CurJob.def != JobDefOf.GotoWander
-                    && pawn.CurJob.def != JobDefOf.Wait_Wander)
+                // Don't interrupt active COMBAT jobs (attack, goto post, flee block)
+                // But DO interrupt normal work (mining, eating, sleeping) during active threat
+                var curJobDef = pawn.CurJob?.def;
+                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
+                    || curJobDef == JobDefOf.Goto)
                     continue;
 
                 // At post and idle with no nearby enemy? Just stay. Don't wander.
@@ -627,9 +651,38 @@ namespace AutoDraft
                 }
                 else
                 {
-                    // No enemies -- if not at post, go there. If at post, stay put.
+                    // No enemies visible from here. Check if a squadmate needs help.
+                    if (soldierUnderAttack != null && soldierUnderAttack != pawn && attackingEnemy != null)
+                    {
+                        float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
+                        if (aidDist < 40f)
+                        {
+                            // Run to help squadmate
+                            float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
+                            IntVec3 aidPos = GetKitePosition(pawn, attackingEnemy, weaponRange);
+                            if (aidPos.IsValid)
+                            {
+                                Job aidJob = JobMaker.MakeJob(JobDefOf.Goto, aidPos);
+                                aidJob.locomotionUrgency = LocomotionUrgency.Sprint;
+                                pawn.jobs.TryTakeOrderedJob(aidJob, JobTag.Misc);
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Nobody needs help -- go to post or guard
                     if (!atPost && comp.combatPost.IsValid)
+                    {
                         SendToPost(pawn, comp);
+                    }
+                    else if (curJobDef != JobDefOf.Wait_Combat)
+                    {
+                        // Guard: Wait_Combat keeps them "busy" so vanilla won't
+                        // assign mining/eating. Re-evaluates every 5 seconds.
+                        Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
+                        guardJob.expiryInterval = 300;
+                        pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
+                    }
                 }
             }
         }
