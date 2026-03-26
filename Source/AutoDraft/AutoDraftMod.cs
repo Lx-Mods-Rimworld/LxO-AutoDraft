@@ -324,15 +324,19 @@ namespace AutoDraft
         {
             // First: collect ALL enemies already being handled by any soldier
             var handledEnemies = new HashSet<int>();
+            JobDef skDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
+            JobDef scDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
+
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var curJob = soldier.CurJob;
                 if (curJob == null) continue;
 
-                // If soldier is already stripping/attacking/capturing a target, mark it handled
+                // Mark target as handled if soldier is doing ANY combat/post-combat job on them
                 if (curJob.def == JobDefOf.AttackMelee || curJob.def == JobDefOf.Strip
-                    || curJob.def == JobDefOf.Capture)
+                    || curJob.def == JobDefOf.Capture
+                    || curJob.def == skDef || curJob.def == scDef)
                 {
                     if (curJob.targetA.Thing is Pawn targetPawn && targetPawn.Downed)
                         handledEnemies.Add(targetPawn.thingIDNumber);
@@ -350,13 +354,8 @@ namespace AutoDraft
                 // Don't interrupt if already handling a downed enemy
                 var curJobDef = soldier.CurJob?.def;
                 if (curJobDef == JobDefOf.AttackMelee || curJobDef == JobDefOf.Strip
-                    || curJobDef == JobDefOf.Capture)
-                    continue;
-
-                // Check custom jobs too
-                JobDef stripKillDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
-                JobDef stripCaptureDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
-                if (curJobDef == stripKillDef || curJobDef == stripCaptureDef)
+                    || curJobDef == JobDefOf.Capture
+                    || curJobDef == skDef || curJobDef == scDef)
                     continue;
 
                 // Find nearest unhandled downed hostile
