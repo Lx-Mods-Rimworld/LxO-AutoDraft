@@ -2,6 +2,30 @@
 
 All notable changes to this mod will be documented in this file.
 
+## [1.1.0] - 2026-03-26
+
+### Features
+- Kidnap rescue: soldiers detect when a colonist is being carried away and pursue the kidnapper across the entire map
+- Expanded threat detection: soldiers now respond to ranged attacks and any enemy targeting a colonist, not just melee
+- Soldiers' hostile response is automatically set to Attack (no more fleeing soldiers)
+
+### Fixes
+- Fixed soldiers stuck in useless AttackStatic on enemies that moved out of weapon range. Soldiers now cancel the attack and reassign properly.
+- Fixed soldiers doing construction (FinishFrame) at their post during raids instead of guarding
+- Fixed soldiers not finishing off downed enemies after save/load
+- Fixed soldiers fighting over the same downed enemy (strip+kill loop)
+- Fixed strip-then-kill never completing: now handled as a single job with sequential steps
+- Fixed downed enemies needing multiple melee hits: now uses instant execution
+- Fixed soldiers fleeing instead of fighting (FleeAndCower blocked for active soldiers)
+- Fixed melee with rifle when enemy is point blank
+- Fixed collection crash during pawn iteration
+- Fixed errors when pawns die: soldier comp no longer runs on corpses
+
+### Improvements
+- All debug logging conditional on LxDebug mod. Zero performance overhead for normal users.
+- Soldiers kite ranged enemies: move to optimal firing distance instead of standing still
+- Mutual aid: soldiers rush to help squadmates under attack within 30 tiles
+
 ## [1.0.0] - 2026-03-26
 
 ### Features
