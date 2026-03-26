@@ -581,56 +581,72 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Don't interrupt active COMBAT jobs (attack, goto post, flee block)
-                // But DO interrupt normal work (mining, eating, sleeping) during active threat
                 var curJobDef = pawn.CurJob?.def;
-                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
-                    || curJobDef == JobDefOf.Goto)
-                    continue;
-
-                // At post and idle with no nearby enemy? Just stay. Don't wander.
+                string curJobName = curJobDef?.defName ?? "NONE";
                 bool atPost = comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) <= 3f;
-
-                // Find nearest enemy
                 Thing enemy = FindNearestEnemy(pawn);
+                float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
+                bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+                float enemyDist = enemy != null ? pawn.Position.DistanceTo(enemy.Position) : -1f;
 
-                // Mutual aid: if a squadmate is under attack, prioritize that enemy
+                // Mutual aid: if squadmate under attack, prioritize that enemy
                 if (attackingEnemy != null && soldierUnderAttack != pawn)
                 {
                     float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
-                    if (aidDist < 30f) // Within reasonable aid range
+                    if (aidDist < 30f)
+                    {
                         enemy = attackingEnemy;
+                        enemyDist = aidDist;
+                    }
+                }
+
+                // LOG: full state for this soldier
+                Log.Message("[Garrison] ENFORCE " + pawn.LabelShort
+                    + " pos=" + pawn.Position + " atPost=" + atPost
+                    + " job=" + curJobName
+                    + " enemy=" + (enemy?.LabelShort ?? "NONE")
+                    + " dist=" + enemyDist.ToString("F0")
+                    + " range=" + weaponRange.ToString("F0")
+                    + " ranged=" + hasRangedWeapon
+                    + " underAttack=" + (soldierUnderAttack?.LabelShort ?? "NONE"));
+
+                // Don't interrupt active combat/movement jobs
+                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
+                    || curJobDef == JobDefOf.Goto)
+                {
+                    Log.Message("[Garrison]   -> SKIP (active combat job)");
+                    continue;
                 }
 
                 if (enemy != null)
                 {
-                    float dist = pawn.Position.DistanceTo(enemy.Position);
-                    float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
-                    bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+                    float dist = enemyDist;
 
-                    // At post with enemy out of range? Hold position. Don't chase.
+                    // At post with enemy out of range? Hold position.
                     if (atPost && dist > weaponRange && dist > 1.5f)
+                    {
+                        Log.Message("[Garrison]   -> HOLD at post (enemy out of range)");
                         continue;
+                    }
 
                     if (dist <= 1.5f)
                     {
-                        // Enemy is in melee range -- always melee, even with ranged weapon
-                        // A rifle butt is better than bare hands
+                        Log.Message("[Garrison]   -> MELEE " + enemy.LabelShort);
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else if (dist <= weaponRange && hasRangedWeapon)
                     {
-                        // In weapon range: shoot
+                        Log.Message("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
                     else if (hasRangedWeapon && dist <= weaponRange + 10f)
                     {
-                        // Close but not in range: kite toward firing position
                         IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
                         if (kitePos.IsValid)
                         {
+                            Log.Message("[Garrison]   -> KITE to " + kitePos + " (enemy at " + dist.ToString("F0") + ")");
                             Job moveJob = JobMaker.MakeJob(JobDefOf.Goto, kitePos);
                             moveJob.locomotionUrgency = LocomotionUrgency.Sprint;
                             pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
@@ -638,30 +654,30 @@ namespace AutoDraft
                     }
                     else if (!hasRangedWeapon)
                     {
-                        // Melee soldier: charge
+                        Log.Message("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee)");
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else
                     {
-                        // Enemy too far -- go to post and wait
+                        Log.Message("[Garrison]   -> RETURN to post (enemy too far: " + dist.ToString("F0") + ")");
                         if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
                             SendToPost(pawn, comp);
                     }
                 }
                 else
                 {
-                    // No enemies visible from here. Check if a squadmate needs help.
+                    // No enemies visible. Check if squadmate needs help.
                     if (soldierUnderAttack != null && soldierUnderAttack != pawn && attackingEnemy != null)
                     {
                         float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
                         if (aidDist < 40f)
                         {
-                            // Run to help squadmate
-                            float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
                             IntVec3 aidPos = GetKitePosition(pawn, attackingEnemy, weaponRange);
                             if (aidPos.IsValid)
                             {
+                                Log.Message("[Garrison]   -> AID " + soldierUnderAttack.LabelShort
+                                    + " against " + attackingEnemy.LabelShort + " at " + aidPos);
                                 Job aidJob = JobMaker.MakeJob(JobDefOf.Goto, aidPos);
                                 aidJob.locomotionUrgency = LocomotionUrgency.Sprint;
                                 pawn.jobs.TryTakeOrderedJob(aidJob, JobTag.Misc);
@@ -670,18 +686,22 @@ namespace AutoDraft
                         }
                     }
 
-                    // Nobody needs help -- go to post or guard
+                    // Nobody needs help
                     if (!atPost && comp.combatPost.IsValid)
                     {
+                        Log.Message("[Garrison]   -> GOTO post");
                         SendToPost(pawn, comp);
                     }
                     else if (curJobDef != JobDefOf.Wait_Combat)
                     {
-                        // Guard: Wait_Combat keeps them "busy" so vanilla won't
-                        // assign mining/eating. Re-evaluates every 5 seconds.
+                        Log.Message("[Garrison]   -> GUARD at post");
                         Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
                         guardJob.expiryInterval = 300;
                         pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
+                    }
+                    else
+                    {
+                        Log.Message("[Garrison]   -> HOLDING (already guarding)");
                     }
                 }
             }
