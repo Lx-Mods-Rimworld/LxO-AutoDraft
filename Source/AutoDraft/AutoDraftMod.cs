@@ -721,14 +721,16 @@ namespace AutoDraft
                             pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
                         }
                     }
-                    else if (!hasRangedWeapon)
+                    else if (!hasRangedWeapon && dist <= 10f)
                     {
-                        GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee)");
+                        // Melee: only charge if enemy is close (self-defense or already engaged)
+                        GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee, close)");
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else
                     {
+                        // Enemy too far -- return to post
                         GarrisonDebug.Log("[Garrison]   -> RETURN to post (enemy too far: " + dist.ToString("F0") + ")");
                         if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
                             SendToPost(pawn, comp);
