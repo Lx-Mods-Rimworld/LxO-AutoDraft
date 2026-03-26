@@ -739,7 +739,6 @@ namespace AutoDraft
             Scribe_Values.Look(ref lastThreatTick, "ad_lastThreatTick", -9999);
         }
     }
-}
 
     // ==================== CUSTOM JOB DRIVER: STRIP THEN KILL ====================
 
@@ -857,3 +856,4 @@ namespace AutoDraft
             yield return placeToil;
         }
     }
+}
