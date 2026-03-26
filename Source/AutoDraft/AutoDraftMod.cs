@@ -561,7 +561,8 @@ namespace AutoDraft
         /// </summary>
         private void EnforcePosts()
         {
-            // First pass: find if any colonist is in danger (kidnapped, under attack)
+            // First pass: find if any colonist is in danger
+            // Priority: kidnapping > pawn targeted > enemy in attack job near colonists
             Pawn colonistInDanger = null;
             Thing dangerSource = null;
             bool isKidnapping = false;
@@ -578,12 +579,11 @@ namespace AutoDraft
                     dangerSource = enemy;
                     isKidnapping = true;
                     GarrisonDebug.Log("[Garrison] DANGER: " + enemy.LabelShort
-                        + " KIDNAPPING " + carriedPawn.LabelShort
-                        + " at " + enemy.Position);
-                    break; // Kidnapping is highest priority
+                        + " KIDNAPPING " + carriedPawn.LabelShort);
+                    break;
                 }
 
-                // Enemy targeting a colonist (melee or ranged -- any distance)
+                // Enemy explicitly targeting a colonist
                 if (colonistInDanger == null)
                 {
                     Thing targetThing = enemy.CurJob?.targetA.Thing;
@@ -592,6 +592,37 @@ namespace AutoDraft
                     {
                         colonistInDanger = targetPawn;
                         dangerSource = enemy;
+                        continue;
+                    }
+                }
+
+                // Enemy in an attack job (AttackStatic, AttackMelee, etc.) but targeting
+                // a position/building -- find nearest colonist as the one in danger.
+                // Raiders often target cells/walls, not specific pawns.
+                if (colonistInDanger == null)
+                {
+                    var jobDef = enemy.CurJob?.def;
+                    if (jobDef == JobDefOf.AttackStatic || jobDef == JobDefOf.AttackMelee
+                        || (jobDef != null && jobDef.defName.Contains("Attack")))
+                    {
+                        // Find nearest colonist to this actively attacking enemy
+                        Pawn nearest = null;
+                        float nearDist = 30f; // Only flag danger if enemy is near a colonist
+                        foreach (Pawn col in map.mapPawns.FreeColonistsSpawned)
+                        {
+                            if (col.Dead || col.Downed) continue;
+                            float d = col.Position.DistanceTo(enemy.Position);
+                            if (d < nearDist)
+                            {
+                                nearDist = d;
+                                nearest = col;
+                            }
+                        }
+                        if (nearest != null)
+                        {
+                            colonistInDanger = nearest;
+                            dangerSource = enemy;
+                        }
                     }
                 }
             }
@@ -681,10 +712,12 @@ namespace AutoDraft
                 {
                     float dist = enemyDist;
 
-                    // At post with enemy out of range? Hold position -- but ensure guarding, not working
-                    // Melee soldiers: engage within 10 tiles (not weapon range of 1)
+                    // At post with enemy out of range?
+                    // Melee soldiers: if a colonist is under attack, charge REGARDLESS of distance
+                    // Otherwise hold at post if enemy is far
+                    bool meleeAndColonistInDanger = !hasRangedWeapon && colonistInDanger != null;
                     float holdRange = hasRangedWeapon ? weaponRange : 10f;
-                    if (atPost && dist > holdRange && dist > 1.5f)
+                    if (atPost && dist > holdRange && dist > 1.5f && !meleeAndColonistInDanger)
                     {
                         if (curJobDef != JobDefOf.Wait_Combat)
                         {
