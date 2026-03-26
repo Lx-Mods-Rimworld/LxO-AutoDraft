@@ -682,7 +682,9 @@ namespace AutoDraft
                     float dist = enemyDist;
 
                     // At post with enemy out of range? Hold position -- but ensure guarding, not working
-                    if (atPost && dist > weaponRange && dist > 1.5f)
+                    // Melee soldiers: engage within 10 tiles (not weapon range of 1)
+                    float holdRange = hasRangedWeapon ? weaponRange : 10f;
+                    if (atPost && dist > holdRange && dist > 1.5f)
                     {
                         if (curJobDef != JobDefOf.Wait_Combat)
                         {
