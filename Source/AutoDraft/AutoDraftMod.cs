@@ -143,7 +143,8 @@ namespace AutoDraft
     {
         public bool isSoldier;
         public IntVec3 combatPost = IntVec3.Invalid;
-        public bool autoDrafted; // Was this pawn drafted by us?
+        public bool autoDrafted;
+        public int pendingKillTarget = -1; // thingID of target to kill after strip completes
 
         public Pawn Pawn => (Pawn)parent;
 
@@ -317,14 +318,56 @@ namespace AutoDraft
                 }
             }
 
-            // Second: assign idle soldiers to unhandled downed enemies
+            // Second: handle pending kills (strip completed, now kill/capture)
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Already busy -- skip entirely
+                // Check for pending kill target (set after strip)
+                if (comp.pendingKillTarget >= 0)
+                {
+                    // Only act when idle
+                    bool isIdle = soldier.CurJob == null
+                        || soldier.CurJob.def == JobDefOf.Wait
+                        || soldier.CurJob.def == JobDefOf.Wait_MaintainPosture;
+
+                    // Also trigger if current job is NOT strip (strip finished)
+                    bool stripDone = soldier.CurJob?.def != JobDefOf.Strip;
+
+                    if (isIdle || stripDone)
+                    {
+                        Pawn pendingTarget = null;
+                        foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
+                        {
+                            if (enemy.thingIDNumber == comp.pendingKillTarget && enemy.Downed && !enemy.Dead)
+                            {
+                                pendingTarget = enemy;
+                                break;
+                            }
+                        }
+
+                        comp.pendingKillTarget = -1;
+
+                        if (pendingTarget != null)
+                        {
+                            Log.Message("[Garrison] " + soldier.LabelShort
+                                + " strip done -> executing kill/capture on " + pendingTarget.LabelShort);
+                            handledEnemies.Add(pendingTarget.thingIDNumber);
+                            HandleDownedEnemy(soldier, pendingTarget);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // Still stripping, mark target as handled
+                        handledEnemies.Add(comp.pendingKillTarget);
+                        continue;
+                    }
+                }
+
+                // Already busy -- skip
                 if (soldier.CurJob != null
                     && soldier.CurJob.def != JobDefOf.Wait
                     && soldier.CurJob.def != JobDefOf.Wait_MaintainPosture
@@ -397,26 +440,13 @@ namespace AutoDraft
                     Job stripJob = JobMaker.MakeJob(JobDefOf.Strip, target);
                     soldier.jobs.TryTakeOrderedJob(stripJob, JobTag.Misc);
 
-                    // Queue the follow-up job so it happens immediately after strip
-                    if (canCapture)
-                    {
-                        Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
-                        if (bed != null)
-                        {
-                            Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
-                            soldier.jobs.jobQueue.EnqueueFirst(captureJob);
-                        }
-                        else if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
-                        {
-                            Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
-                            soldier.jobs.jobQueue.EnqueueFirst(killJob);
-                        }
-                    }
-                    else if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
-                    {
-                        Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
-                        soldier.jobs.jobQueue.EnqueueFirst(killJob);
-                    }
+                    // Mark target for kill/capture AFTER strip -- handled by FinishOffDowned next tick
+                    var comp = soldier.GetComp<CompSoldier>();
+                    if (comp != null)
+                        comp.pendingKillTarget = target.thingIDNumber;
+
+                    Log.Message("[Garrison] " + soldier.LabelShort + " stripping " + target.LabelShort
+                        + " -> pending kill/capture after strip");
                     return;
                 }
             }
