@@ -235,6 +235,22 @@ namespace AutoDraft
             bool standingThreats = HasHostileThreats();
             bool downedHostiles = HasDownedHostiles();
 
+            // Debug: log state every 300 ticks (~5 seconds) if there are downed hostiles
+            if (downedHostiles && Find.TickManager.TicksGame % 300 == 0)
+            {
+                int soldierCount = 0;
+                int activatedCount = 0;
+                foreach (var p in map.mapPawns.FreeColonistsSpawned)
+                {
+                    var c = p.GetComp<CompSoldier>();
+                    if (c != null && c.isSoldier) soldierCount++;
+                    if (c != null && c.autoDrafted) activatedCount++;
+                }
+                Log.Message("[Garrison] TICK state: standing=" + standingThreats
+                    + " downed=" + downedHostiles + " threatActive=" + threatActive
+                    + " soldiers=" + soldierCount + " activated=" + activatedCount);
+            }
+
             if (standingThreats && !threatActive)
             {
                 // Threat just appeared -- activate soldiers
@@ -253,8 +269,11 @@ namespace AutoDraft
             else if (!standingThreats && downedHostiles)
             {
                 // All enemies down but alive -- hunt them down and finish them
-                // Runs regardless of threatActive (handles save/load with existing downed enemies)
-                if (!threatActive) threatActive = true; // Re-activate for downed cleanup
+                if (!threatActive)
+                {
+                    threatActive = true;
+                    ActivateSoldiers(); // Activate soldiers so autoDrafted=true
+                }
                 FinishOffDowned();
             }
             else if (!standingThreats && !downedHostiles && threatActive)
@@ -320,19 +339,24 @@ namespace AutoDraft
                 }
             }
 
-            // Second: assign idle soldiers to unhandled downed enemies
+            // Second: assign soldiers to unhandled downed enemies
+            // For downed cleanup, soldiers CAN be interrupted from normal work
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
-                if (comp == null || !comp.autoDrafted) continue;
+                if (comp == null || !comp.isSoldier) continue; // Use isSoldier, not autoDrafted
 
-                // Already busy -- skip
-                if (soldier.CurJob != null
-                    && soldier.CurJob.def != JobDefOf.Wait
-                    && soldier.CurJob.def != JobDefOf.Wait_MaintainPosture
-                    && soldier.CurJob.def != JobDefOf.GotoWander
-                    && soldier.CurJob.def != JobDefOf.Wait_Wander)
+                // Don't interrupt if already handling a downed enemy
+                var curJobDef = soldier.CurJob?.def;
+                if (curJobDef == JobDefOf.AttackMelee || curJobDef == JobDefOf.Strip
+                    || curJobDef == JobDefOf.Capture)
+                    continue;
+
+                // Check custom jobs too
+                JobDef stripKillDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
+                JobDef stripCaptureDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
+                if (curJobDef == stripKillDef || curJobDef == stripCaptureDef)
                     continue;
 
                 // Find nearest unhandled downed hostile
