@@ -269,7 +269,7 @@ namespace AutoDraft
 
         private bool HasHostileThreats()
         {
-            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 if (pawn.Dead) continue;
                 if (!pawn.HostileTo(Faction.OfPlayer)) continue;
@@ -284,7 +284,7 @@ namespace AutoDraft
         /// </summary>
         private bool HasDownedHostiles()
         {
-            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 if (pawn.Dead) continue;
                 if (!pawn.HostileTo(Faction.OfPlayer)) continue;
@@ -303,7 +303,7 @@ namespace AutoDraft
             // Track which downed enemies are already being handled
             var handledEnemies = new HashSet<int>();
 
-            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
@@ -328,7 +328,7 @@ namespace AutoDraft
         {
             Pawn best = null;
             float bestDist = float.MaxValue;
-            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 if (enemy.Dead || !enemy.Downed) continue;
                 if (!enemy.HostileTo(Faction.OfPlayer)) continue;
@@ -412,7 +412,7 @@ namespace AutoDraft
         {
             int activated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player drafted manually, don't touch
@@ -457,14 +457,14 @@ namespace AutoDraft
             // First pass: find if any soldier is being attacked (for mutual aid)
             Pawn soldierUnderAttack = null;
             Thing attackingEnemy = null;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
                 // Check if this soldier is being attacked in melee
-                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
                 {
                     if (enemy.Dead || enemy.Downed || !enemy.HostileTo(Faction.OfPlayer)) continue;
                     if (enemy.CurJob?.targetA.Thing == pawn && enemy.Position.DistanceTo(pawn.Position) < 5f)
@@ -477,7 +477,7 @@ namespace AutoDraft
                 if (soldierUnderAttack != null) break;
             }
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player has manual control
@@ -485,10 +485,11 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Don't interrupt active attack or strip/capture jobs
+                // Don't interrupt active combat, movement, or post-combat jobs
                 var curJobDef = pawn.CurJob?.def;
                 if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
-                    || curJobDef == JobDefOf.Strip || curJobDef == JobDefOf.Capture)
+                    || curJobDef == JobDefOf.Strip || curJobDef == JobDefOf.Capture
+                    || curJobDef == JobDefOf.Goto)
                     continue;
 
                 // Find nearest enemy
@@ -588,7 +589,7 @@ namespace AutoDraft
             Thing nearest = null;
             float nearestDist = float.MaxValue;
 
-            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 if (enemy.Dead || enemy.Downed) continue;
                 if (!enemy.HostileTo(Faction.OfPlayer)) continue;
@@ -606,7 +607,7 @@ namespace AutoDraft
         {
             int deactivated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
 
@@ -635,7 +636,7 @@ namespace AutoDraft
 
         private void FleeNonCombatants()
         {
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed || pawn.Drafted) continue;
 
