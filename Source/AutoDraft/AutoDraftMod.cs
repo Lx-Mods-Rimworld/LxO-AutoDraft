@@ -210,25 +210,32 @@ namespace AutoDraft
             if (!AutoDraftSettings.enabled) return;
             if (Find.TickManager.TicksGame % 60 != 0) return;
 
-            bool threatsNow = HasHostileThreats();
+            bool standingThreats = HasHostileThreats();
+            bool downedHostiles = HasDownedHostiles();
 
-            if (threatsNow && !threatActive)
+            if (standingThreats && !threatActive)
             {
-                // Threat just appeared
+                // Threat just appeared -- activate soldiers
                 threatActive = true;
                 lastThreatTick = Find.TickManager.TicksGame;
                 ActivateSoldiers();
                 if (AutoDraftSettings.fleeNonCombatants)
                     FleeNonCombatants();
             }
-            else if (threatsNow)
+            else if (standingThreats)
             {
+                // Active combat -- defend at posts, attack in range
                 lastThreatTick = Find.TickManager.TicksGame;
-                // Keep soldiers at posts if they wandered
                 EnforcePosts();
             }
-            else if (!threatsNow && threatActive)
+            else if (!standingThreats && downedHostiles && threatActive)
             {
+                // All enemies down but alive -- hunt them down and finish them
+                FinishOffDowned();
+            }
+            else if (!standingThreats && !downedHostiles && threatActive)
+            {
+                // All enemies dead/gone -- stand down after delay
                 int ticksSince = Find.TickManager.TicksGame - lastThreatTick;
                 if (ticksSince >= AutoDraftSettings.undraftDelay)
                 {
@@ -243,99 +250,205 @@ namespace AutoDraft
         {
             foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
             {
-                if (pawn.Dead || pawn.Downed) continue;
-                if (pawn.HostileTo(Faction.OfPlayer))
-                    return true;
+                if (pawn.Dead) continue;
+                if (!pawn.HostileTo(Faction.OfPlayer)) continue;
+                // Standing enemies = active threat
+                if (!pawn.Downed) return true;
             }
             return false;
         }
 
+        /// <summary>
+        /// Check if there are downed (but alive) hostile pawns that should be finished off.
+        /// </summary>
+        private bool HasDownedHostiles()
+        {
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            {
+                if (pawn.Dead) continue;
+                if (!pawn.HostileTo(Faction.OfPlayer)) continue;
+                if (pawn.Downed) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Send soldiers to finish off downed enemies.
+        /// </summary>
+        private void FinishOffDowned()
+        {
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
+            {
+                if (soldier.Dead || soldier.Downed) continue;
+                var comp = soldier.GetComp<CompSoldier>();
+                if (comp == null || !comp.autoDrafted) continue;
+                if (soldier.WorkTagIsDisabled(WorkTags.Violent)) continue;
+
+                // Already attacking something, let them finish
+                if (soldier.CurJob?.def == JobDefOf.AttackMelee || soldier.CurJob?.def == JobDefOf.AttackStatic)
+                    continue;
+
+                // Find nearest downed hostile
+                Pawn target = null;
+                float bestDist = float.MaxValue;
+                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+                {
+                    if (enemy.Dead || !enemy.Downed) continue;
+                    if (!enemy.HostileTo(Faction.OfPlayer)) continue;
+                    float dist = soldier.Position.DistanceTo(enemy.Position);
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        target = enemy;
+                    }
+                }
+
+                if (target != null)
+                {
+                    Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+                    soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+                }
+            }
+        }
+
         private void ActivateSoldiers()
         {
-            int drafted = 0;
+            int activated = 0;
 
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
-                if (pawn.Drafted) continue; // Player already drafted them
+                if (pawn.Drafted) continue; // Player drafted manually, don't touch
 
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.isSoldier) continue;
+                if (comp.autoDrafted) continue; // Already activated
 
-                // Draft the soldier
-                pawn.drafter.Drafted = true;
                 comp.autoDrafted = true;
-                drafted++;
+                activated++;
 
-                // Send to combat post if assigned
-                if (comp.combatPost.IsValid && comp.combatPost.InBounds(map))
-                {
-                    Job gotoPost = JobMaker.MakeJob(JobDefOf.Goto, comp.combatPost);
-                    gotoPost.locomotionUrgency = LocomotionUrgency.Sprint;
-                    pawn.jobs.TryTakeOrderedJob(gotoPost, JobTag.DraftedOrder);
-                }
+                // Send to combat post -- undrafted, using AttackMelee/Goto
+                SendToPost(pawn, comp);
             }
 
-            if (drafted > 0 && AutoDraftSettings.showAlert)
+            if (activated > 0 && AutoDraftSettings.showAlert)
             {
-                Messages.Message("AD_ThreatDetected".Translate(drafted),
+                Messages.Message("AD_ThreatDetected".Translate(activated),
                     MessageTypeDefOf.ThreatBig, false);
             }
         }
 
         /// <summary>
-        /// Keep soldiers at their posts. If they finished their goto and are idle,
-        /// they'll auto-attack enemies in range (vanilla drafted behavior).
-        /// If they wandered off, send them back.
+        /// Send soldier to their post. They go undrafted and will auto-attack
+        /// enemies via forced attack jobs from EnforcePosts.
+        /// </summary>
+        private void SendToPost(Pawn pawn, CompSoldier comp)
+        {
+            if (!comp.combatPost.IsValid || !comp.combatPost.InBounds(map)) return;
+
+            Job gotoPost = JobMaker.MakeJob(JobDefOf.Goto, comp.combatPost);
+            gotoPost.locomotionUrgency = LocomotionUrgency.Sprint;
+            pawn.jobs.TryTakeOrderedJob(gotoPost, JobTag.Misc);
+        }
+
+        /// <summary>
+        /// Keep soldiers at posts and make them attack nearby enemies.
+        /// Soldiers stay undrafted -- we give them explicit attack jobs.
         /// </summary>
         private void EnforcePosts()
         {
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
-                if (pawn.Dead || pawn.Downed || !pawn.Drafted) continue;
+                if (pawn.Dead || pawn.Downed) continue;
+                if (pawn.Drafted) continue; // Player has manual control
 
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
-                if (!comp.combatPost.IsValid) continue;
 
-                // If pawn has no job (idle at post), they auto-attack. Good.
-                if (pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait_Combat)
-                    continue;
+                // Find nearest visible enemy
+                Thing enemy = FindNearestEnemy(pawn);
 
-                // If pawn is too far from post, send them back
-                if (pawn.Position.DistanceTo(comp.combatPost) > 5f)
+                if (enemy != null)
                 {
-                    // Only re-send if they're not already going there
-                    if (pawn.CurJob?.def != JobDefOf.Goto
-                        || pawn.CurJob?.targetA.Cell != comp.combatPost)
+                    float dist = pawn.Position.DistanceTo(enemy.Position);
+
+                    // If enemy is in weapon range, attack them
+                    float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
+                    if (dist <= weaponRange && pawn.CurJob?.def != JobDefOf.AttackStatic)
                     {
-                        Job gotoPost = JobMaker.MakeJob(JobDefOf.Goto, comp.combatPost);
-                        gotoPost.locomotionUrgency = LocomotionUrgency.Sprint;
-                        pawn.jobs.TryTakeOrderedJob(gotoPost, JobTag.DraftedOrder);
+                        Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
+                        pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
+                        continue;
+                    }
+
+                    // If enemy too far but we have a post, stay at post and wait
+                    if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
+                    {
+                        if (pawn.CurJob?.def != JobDefOf.Goto || pawn.CurJob?.targetA.Cell != comp.combatPost)
+                        {
+                            SendToPost(pawn, comp);
+                        }
+                        continue;
+                    }
+                }
+                else
+                {
+                    // No enemies visible -- make sure we're at post
+                    if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
+                    {
+                        if (pawn.CurJob?.def != JobDefOf.Goto)
+                            SendToPost(pawn, comp);
                     }
                 }
             }
         }
 
+        private Thing FindNearestEnemy(Pawn soldier)
+        {
+            Thing nearest = null;
+            float nearestDist = float.MaxValue;
+
+            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+            {
+                if (enemy.Dead || enemy.Downed) continue;
+                if (!enemy.HostileTo(Faction.OfPlayer)) continue;
+                float dist = soldier.Position.DistanceTo(enemy.Position);
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = enemy;
+                }
+            }
+            return nearest;
+        }
+
         private void DeactivateSoldiers()
         {
-            int undrafted = 0;
+            int deactivated = 0;
 
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
-                if (pawn.Dead || pawn.Downed || !pawn.Drafted) continue;
+                if (pawn.Dead || pawn.Downed) continue;
 
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                pawn.drafter.Drafted = false;
                 comp.autoDrafted = false;
-                undrafted++;
+
+                // If drafted by us indirectly, undraft
+                if (pawn.Drafted)
+                    pawn.drafter.Drafted = false;
+
+                // Clear any attack/goto jobs we gave them so they return to work
+                if (pawn.CurJob?.def == JobDefOf.AttackStatic || pawn.CurJob?.def == JobDefOf.Goto)
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+
+                deactivated++;
             }
 
-            if (undrafted > 0 && AutoDraftSettings.showAlert)
+            if (deactivated > 0 && AutoDraftSettings.showAlert)
             {
-                Messages.Message("AD_ThreatCleared".Translate(undrafted),
+                Messages.Message("AD_ThreatCleared".Translate(deactivated),
                     MessageTypeDefOf.PositiveEvent, false);
             }
         }
