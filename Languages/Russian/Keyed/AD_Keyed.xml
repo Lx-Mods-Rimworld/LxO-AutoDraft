@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>Включить автопризыв</AD_Enabled>
+  <AD_AutoUndraft>Автоотмена призыва после устранения угроз</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Автоматически снимать призыв с солдат после устранения всех враждебных угроз.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Небоевые колонисты бегут в укрытие</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Пацифисты и небоевые колонисты бегут к ближайшему безопасному крытому месту в домашней зоне.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>Показывать уведомления о призыве/отмене призыва</AD_ShowAlert>
+  <AD_MinSkill>Минимальный навык стрельбы или ближнего боя для статуса солдата</AD_MinSkill>
+  <AD_UndraftDelay>Задержка перед отменой призыва после последней угрозы</AD_UndraftDelay>
+  <AD_ThreatDetected>Автопризыв: {0} солдат призвано! Обнаружены угрозы.</AD_ThreatDetected>
+  <AD_ThreatCleared>Автопризыв: Угрозы устранены. {0} солдат возвращаются к обычным делам.</AD_ThreatCleared>
+</LanguageData>

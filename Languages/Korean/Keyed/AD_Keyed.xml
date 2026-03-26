@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>자동 징집 활성화</AD_Enabled>
+  <AD_AutoUndraft>위협 제거 후 자동 징집 해제</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>모든 적대적 위협이 제거된 후 병사들의 징집을 자동으로 해제합니다.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>비전투원을 안전한 곳으로 대피</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>평화주의자와 비전투원이 홈 구역 내 가장 안전한 지붕이 있는 장소로 달려갑니다.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>징집/징집 해제 알림 표시</AD_ShowAlert>
+  <AD_MinSkill>병사로 간주할 최소 사격 또는 근접 스킬</AD_MinSkill>
+  <AD_UndraftDelay>마지막 위협 제거 후 징집 해제까지 지연 시간</AD_UndraftDelay>
+  <AD_ThreatDetected>자동 징집: {0}명의 병사가 징집되었습니다! 위협이 감지되었습니다.</AD_ThreatDetected>
+  <AD_ThreatCleared>자동 징집: 위협이 제거되었습니다. {0}명의 병사가 대기 상태로 복귀합니다.</AD_ThreatCleared>
+</LanguageData>

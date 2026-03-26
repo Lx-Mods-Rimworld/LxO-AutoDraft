@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>自動徴兵を有効にする</AD_Enabled>
+  <AD_AutoUndraft>脅威が排除されたら自動で徴兵解除</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>すべての敵対的脅威が排除された後、兵士の徴兵を自動的に解除します。</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>非戦闘員を安全な場所へ避難させる</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>平和主義者や非兵士がホームゾーン内の最も安全な屋根のある場所へ走ります。</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>徴兵/徴兵解除のアラートを表示</AD_ShowAlert>
+  <AD_MinSkill>兵士と見なす最低射撃または格闘スキル</AD_MinSkill>
+  <AD_UndraftDelay>最後の脅威排除後、徴兵解除までの遅延</AD_UndraftDelay>
+  <AD_ThreatDetected>自動徴兵：{0} 人の兵士を徴兵しました！脅威を検知。</AD_ThreatDetected>
+  <AD_ThreatCleared>自動徴兵：脅威が排除されました。{0} 人の兵士が待機状態に戻ります。</AD_ThreatCleared>
+</LanguageData>

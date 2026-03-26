@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>Activar reclutamiento automático</AD_Enabled>
+  <AD_AutoUndraft>Desreclutar automáticamente al eliminar amenazas</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Desreclutar automáticamente a los soldados después de eliminar todas las amenazas hostiles.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Los no combatientes huyen a un lugar seguro</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Los pacifistas y no soldados corren hacia la zona techada más segura dentro de tu zona hogar.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>Mostrar alertas de reclutamiento/desreclutamiento</AD_ShowAlert>
+  <AD_MinSkill>Habilidad mínima de disparo o cuerpo a cuerpo para contar como soldado</AD_MinSkill>
+  <AD_UndraftDelay>Retraso antes de desreclutar tras la última amenaza</AD_UndraftDelay>
+  <AD_ThreatDetected>Reclutamiento automático: ¡{0} soldados reclutados! Amenazas detectadas.</AD_ThreatDetected>
+  <AD_ThreatCleared>Reclutamiento automático: Amenazas eliminadas. {0} soldados vuelven a sus tareas.</AD_ThreatCleared>
+</LanguageData>

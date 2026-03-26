@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>Enable Auto Draft</AD_Enabled>
+  <AD_AutoUndraft>Auto-undraft when threats cleared</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Automatically undraft soldiers after all hostile threats are eliminated.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Non-combatants flee to safety</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Pacifists and non-soldiers sprint to the safest roofed area in your home zone.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>Show draft/undraft alerts</AD_ShowAlert>
+  <AD_MinSkill>Minimum shooting or melee to count as soldier</AD_MinSkill>
+  <AD_UndraftDelay>Delay before undrafting after last threat</AD_UndraftDelay>
+  <AD_ThreatDetected>Auto Draft: {0} soldiers drafted! Threats detected.</AD_ThreatDetected>
+  <AD_ThreatCleared>Auto Draft: Threats cleared. {0} soldiers standing down.</AD_ThreatCleared>
+</LanguageData>

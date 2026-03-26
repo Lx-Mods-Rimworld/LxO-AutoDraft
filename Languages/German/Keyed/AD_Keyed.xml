@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>Automatisches Einziehen aktivieren</AD_Enabled>
+  <AD_AutoUndraft>Automatisch absetzen, wenn Bedrohungen beseitigt</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Soldaten werden automatisch abgesetzt, nachdem alle feindlichen Bedrohungen beseitigt wurden.</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>Nichtkombattanten fliehen in Sicherheit</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>Pazifisten und Nichtsoldaten sprinten zum sichersten überdachten Bereich in eurer Heimatzone.</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>Einzugs-/Absetzbenachrichtigungen anzeigen</AD_ShowAlert>
+  <AD_MinSkill>Mindestfertigkeitswert in Schießen oder Nahkampf als Soldat</AD_MinSkill>
+  <AD_UndraftDelay>Verzögerung vor dem Absetzen nach letzter Bedrohung</AD_UndraftDelay>
+  <AD_ThreatDetected>Auto Draft: {0} Soldaten eingezogen! Bedrohungen erkannt.</AD_ThreatDetected>
+  <AD_ThreatCleared>Auto Draft: Bedrohungen beseitigt. {0} Soldaten stehen ab.</AD_ThreatCleared>
+</LanguageData>

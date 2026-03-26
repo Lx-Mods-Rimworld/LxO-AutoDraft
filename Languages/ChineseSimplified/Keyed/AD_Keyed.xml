@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AD_Enabled>启用自动征召</AD_Enabled>
+  <AD_AutoUndraft>威胁消除后自动解除征召</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>所有敌对威胁被消灭后，自动解除士兵的征召状态。</AD_AutoUndraft_Desc>
+  <AD_FleeNonCombatants>非战斗人员逃往安全区域</AD_FleeNonCombatants>
+  <AD_FleeNonCombatants_Desc>和平主义者和非士兵会冲向家园区域内最安全的有屋顶区域。</AD_FleeNonCombatants_Desc>
+  <AD_ShowAlert>显示征召/解除征召提醒</AD_ShowAlert>
+  <AD_MinSkill>被视为士兵的最低射击或近战技能</AD_MinSkill>
+  <AD_UndraftDelay>最后一个威胁消除后解除征召的延迟时间</AD_UndraftDelay>
+  <AD_ThreatDetected>自动征召：{0} 名士兵已征召！检测到威胁。</AD_ThreatDetected>
+  <AD_ThreatCleared>自动征召：威胁已消除。{0} 名士兵已解除征召。</AD_ThreatCleared>
+</LanguageData>
