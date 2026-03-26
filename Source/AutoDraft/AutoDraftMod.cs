@@ -300,19 +300,36 @@ namespace AutoDraft
         /// </summary>
         private void FinishOffDowned()
         {
-            // Track which downed enemies are already being handled
+            // First: collect ALL enemies already being handled by any soldier
             var handledEnemies = new HashSet<int>();
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
+            {
+                if (soldier.Dead || soldier.Downed) continue;
+                var curJob = soldier.CurJob;
+                if (curJob == null) continue;
 
+                // If soldier is already stripping/attacking/capturing a target, mark it handled
+                if (curJob.def == JobDefOf.AttackMelee || curJob.def == JobDefOf.Strip
+                    || curJob.def == JobDefOf.Capture)
+                {
+                    if (curJob.targetA.Thing is Pawn targetPawn && targetPawn.Downed)
+                        handledEnemies.Add(targetPawn.thingIDNumber);
+                }
+            }
+
+            // Second: assign idle soldiers to unhandled downed enemies
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Already busy with a downed enemy action
-                if (soldier.CurJob?.def == JobDefOf.AttackMelee
-                    || soldier.CurJob?.def == JobDefOf.Strip
-                    || soldier.CurJob?.def == JobDefOf.Capture)
+                // Already busy -- skip entirely
+                if (soldier.CurJob != null
+                    && soldier.CurJob.def != JobDefOf.Wait
+                    && soldier.CurJob.def != JobDefOf.Wait_MaintainPosture
+                    && soldier.CurJob.def != JobDefOf.GotoWander
+                    && soldier.CurJob.def != JobDefOf.Wait_Wander)
                     continue;
 
                 // Find nearest unhandled downed hostile
