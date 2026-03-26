@@ -454,6 +454,29 @@ namespace AutoDraft
         /// </summary>
         private void EnforcePosts()
         {
+            // First pass: find if any soldier is being attacked (for mutual aid)
+            Pawn soldierUnderAttack = null;
+            Thing attackingEnemy = null;
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            {
+                if (pawn.Dead || pawn.Downed) continue;
+                var comp = pawn.GetComp<CompSoldier>();
+                if (comp == null || !comp.autoDrafted) continue;
+
+                // Check if this soldier is being attacked in melee
+                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+                {
+                    if (enemy.Dead || enemy.Downed || !enemy.HostileTo(Faction.OfPlayer)) continue;
+                    if (enemy.CurJob?.targetA.Thing == pawn && enemy.Position.DistanceTo(pawn.Position) < 5f)
+                    {
+                        soldierUnderAttack = pawn;
+                        attackingEnemy = enemy;
+                        break;
+                    }
+                }
+                if (soldierUnderAttack != null) break;
+            }
+
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
@@ -462,42 +485,96 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Find nearest visible enemy
+                // Don't interrupt active attack or strip/capture jobs
+                var curJobDef = pawn.CurJob?.def;
+                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
+                    || curJobDef == JobDefOf.Strip || curJobDef == JobDefOf.Capture)
+                    continue;
+
+                // Find nearest enemy
                 Thing enemy = FindNearestEnemy(pawn);
+
+                // Mutual aid: if a squadmate is under attack, prioritize that enemy
+                if (attackingEnemy != null && soldierUnderAttack != pawn)
+                {
+                    float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
+                    if (aidDist < 30f) // Within reasonable aid range
+                        enemy = attackingEnemy;
+                }
 
                 if (enemy != null)
                 {
                     float dist = pawn.Position.DistanceTo(enemy.Position);
-
-                    // If enemy is in weapon range, attack them
                     float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
-                    if (dist <= weaponRange && pawn.CurJob?.def != JobDefOf.AttackStatic)
+                    bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+
+                    if (dist <= weaponRange)
                     {
+                        // In range: shoot
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
-                        continue;
                     }
-
-                    // If enemy too far but we have a post, stay at post and wait
-                    if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
+                    else if (hasRangedWeapon && dist <= weaponRange + 10f)
                     {
-                        if (pawn.CurJob?.def != JobDefOf.Goto || pawn.CurJob?.targetA.Cell != comp.combatPost)
+                        // Close but not in range: move toward enemy to get in range
+                        // Pick a cell that's weapon range away from enemy (kite position)
+                        IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
+                        if (kitePos.IsValid)
                         {
-                            SendToPost(pawn, comp);
+                            Job moveJob = JobMaker.MakeJob(JobDefOf.Goto, kitePos);
+                            moveJob.locomotionUrgency = LocomotionUrgency.Sprint;
+                            pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
                         }
-                        continue;
+                    }
+                    else if (!hasRangedWeapon)
+                    {
+                        // Melee soldier: charge the enemy
+                        Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                        pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                    }
+                    else
+                    {
+                        // Enemy too far -- go to post and wait
+                        if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
+                            SendToPost(pawn, comp);
                     }
                 }
                 else
                 {
-                    // No enemies visible -- make sure we're at post
+                    // No enemies -- go to post
                     if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
                     {
-                        if (pawn.CurJob?.def != JobDefOf.Goto)
+                        if (curJobDef != JobDefOf.Goto)
                             SendToPost(pawn, comp);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Find a position at weapon range from the enemy, preferring to stay near
+        /// the soldier's current position. This enables "kiting" -- shoot then back up.
+        /// </summary>
+        private IntVec3 GetKitePosition(Pawn soldier, Thing enemy, float weaponRange)
+        {
+            // Target a cell that's (weaponRange - 2) tiles from enemy, in the direction away from enemy
+            float targetDist = weaponRange - 2f;
+            if (targetDist < 3f) targetDist = 3f;
+
+            IntVec3 direction = soldier.Position - enemy.Position;
+            float currentDist = soldier.Position.DistanceTo(enemy.Position);
+            if (currentDist < 0.1f) return soldier.Position;
+
+            float scale = targetDist / currentDist;
+            IntVec3 target = new IntVec3(
+                enemy.Position.x + (int)(direction.x * scale),
+                0,
+                enemy.Position.z + (int)(direction.z * scale));
+
+            if (target.InBounds(map) && target.Standable(map))
+                return target;
+
+            return IntVec3.Invalid;
         }
 
         private Thing FindNearestEnemy(Pawn soldier)
