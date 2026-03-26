@@ -508,16 +508,22 @@ namespace AutoDraft
                     float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
                     bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
 
-                    if (dist <= weaponRange)
+                    if (dist <= 1.5f)
                     {
-                        // In range: shoot
+                        // Enemy is in melee range -- always melee, even with ranged weapon
+                        // A rifle butt is better than bare hands
+                        Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                        pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                    }
+                    else if (dist <= weaponRange && hasRangedWeapon)
+                    {
+                        // In weapon range: shoot
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
                     else if (hasRangedWeapon && dist <= weaponRange + 10f)
                     {
-                        // Close but not in range: move toward enemy to get in range
-                        // Pick a cell that's weapon range away from enemy (kite position)
+                        // Close but not in range: kite toward firing position
                         IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
                         if (kitePos.IsValid)
                         {
@@ -528,7 +534,7 @@ namespace AutoDraft
                     }
                     else if (!hasRangedWeapon)
                     {
-                        // Melee soldier: charge the enemy
+                        // Melee soldier: charge
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
