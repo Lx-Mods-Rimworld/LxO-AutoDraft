@@ -444,12 +444,23 @@ namespace AutoDraft
                 return;
             }
 
-            // Fallback: kill directly
+            // Fallback: kill directly using our custom job (instant kill, not melee swings)
+            // AttackMelee only does one swing per job -- downed pawns need multiple hits
+            // Our StripThenKill uses Kill(DamageInfo) for instant execution
             if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
             {
-                Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
-                soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
-                Log.Message("[Garrison] " + soldier.LabelShort + " -> Kill " + target.LabelShort);
+                if (stripKillDef != null)
+                {
+                    Job job = JobMaker.MakeJob(stripKillDef, target);
+                    soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+                    Log.Message("[Garrison] " + soldier.LabelShort + " -> Execute " + target.LabelShort);
+                }
+                else
+                {
+                    Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+                    soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+                    Log.Message("[Garrison] " + soldier.LabelShort + " -> Kill(melee) " + target.LabelShort);
+                }
             }
         }
 
