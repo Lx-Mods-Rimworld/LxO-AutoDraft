@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <JobDef>
+    <defName>AD_StripThenKill</defName>
+    <driverClass>AutoDraft.JobDriver_StripThenKill</driverClass>
+    <reportString>stripping and executing.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
+  <JobDef>
+    <defName>AD_StripThenCapture</defName>
+    <driverClass>AutoDraft.JobDriver_StripThenCapture</driverClass>
+    <reportString>stripping and capturing.</reportString>
+    <casualInterruptible>false</casualInterruptible>
+  </JobDef>
+
+</Defs>

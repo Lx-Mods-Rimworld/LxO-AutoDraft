@@ -318,54 +318,12 @@ namespace AutoDraft
                 }
             }
 
-            // Second: handle pending kills (strip completed, now kill/capture)
+            // Second: assign idle soldiers to unhandled downed enemies
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
-
-                // Check for pending kill target (set after strip)
-                if (comp.pendingKillTarget >= 0)
-                {
-                    // Only act when idle
-                    bool isIdle = soldier.CurJob == null
-                        || soldier.CurJob.def == JobDefOf.Wait
-                        || soldier.CurJob.def == JobDefOf.Wait_MaintainPosture;
-
-                    // Also trigger if current job is NOT strip (strip finished)
-                    bool stripDone = soldier.CurJob?.def != JobDefOf.Strip;
-
-                    if (isIdle || stripDone)
-                    {
-                        Pawn pendingTarget = null;
-                        foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
-                        {
-                            if (enemy.thingIDNumber == comp.pendingKillTarget && enemy.Downed && !enemy.Dead)
-                            {
-                                pendingTarget = enemy;
-                                break;
-                            }
-                        }
-
-                        comp.pendingKillTarget = -1;
-
-                        if (pendingTarget != null)
-                        {
-                            Log.Message("[Garrison] " + soldier.LabelShort
-                                + " strip done -> executing kill/capture on " + pendingTarget.LabelShort);
-                            handledEnemies.Add(pendingTarget.thingIDNumber);
-                            HandleDownedEnemy(soldier, pendingTarget);
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        // Still stripping, mark target as handled
-                        handledEnemies.Add(comp.pendingKillTarget);
-                        continue;
-                    }
-                }
 
                 // Already busy -- skip
                 if (soldier.CurJob != null
@@ -405,7 +363,7 @@ namespace AutoDraft
 
         private void HandleDownedEnemy(Pawn soldier, Pawn target)
         {
-            // Animals: different handling
+            // Animals: just kill
             if (target.RaceProps.Animal)
             {
                 Log.Message("[Garrison] " + soldier.LabelShort + " -> kill animal " + target.LabelShort);
@@ -413,61 +371,59 @@ namespace AutoDraft
                 return;
             }
 
-            // Humanlike enemies
             var mode = AutoDraftSettings.downedHandling;
             bool wantCapture = mode == DownedHandling.Capture || mode == DownedHandling.StripThenCapture;
             bool wantStrip = mode == DownedHandling.StripThenKill || mode == DownedHandling.StripThenCapture;
+            bool hasApparel = target.apparel != null && target.apparel.WornApparelCount > 0;
 
-            // Check if capture is possible (need a prisoner bed)
-            bool canCapture = false;
+            // Check capture possibility
+            Building_Bed prisonBed = null;
             if (wantCapture)
-            {
-                Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
-                canCapture = bed != null;
-            }
+                prisonBed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
 
             Log.Message("[Garrison] " + soldier.LabelShort + " HandleDowned " + target.LabelShort
-                + " mode=" + mode + " wantStrip=" + wantStrip + " wantCapture=" + wantCapture
-                + " canCapture=" + canCapture
-                + " apparel=" + (target.apparel?.WornApparelCount ?? 0)
-                + " violent=" + !soldier.WorkTagIsDisabled(WorkTags.Violent));
+                + " mode=" + mode + " strip=" + wantStrip + " capture=" + wantCapture
+                + " bed=" + (prisonBed != null) + " apparel=" + hasApparel);
 
-            // Strip first if enabled and they have apparel
-            if (wantStrip && target.apparel != null && target.apparel.WornApparelCount > 0)
+            // Use CUSTOM JOB DRIVERS that handle strip+kill/capture in ONE job
+            // This prevents ThinkTree re-evaluation between strip and kill
+
+            JobDef stripKillDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
+            JobDef stripCaptureDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
+
+            if (wantStrip && hasApparel && wantCapture && prisonBed != null && stripCaptureDef != null)
             {
-                if (!soldier.WorkTagIsDisabled(WorkTags.Hauling))
-                {
-                    Job stripJob = JobMaker.MakeJob(JobDefOf.Strip, target);
-                    soldier.jobs.TryTakeOrderedJob(stripJob, JobTag.Misc);
-
-                    // Mark target for kill/capture AFTER strip -- handled by FinishOffDowned next tick
-                    var comp = soldier.GetComp<CompSoldier>();
-                    if (comp != null)
-                        comp.pendingKillTarget = target.thingIDNumber;
-
-                    Log.Message("[Garrison] " + soldier.LabelShort + " stripping " + target.LabelShort
-                        + " -> pending kill/capture after strip");
-                    return;
-                }
+                // Strip + Capture as single job
+                Job job = JobMaker.MakeJob(stripCaptureDef, target, prisonBed);
+                soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+                Log.Message("[Garrison] " + soldier.LabelShort + " -> StripThenCapture " + target.LabelShort);
+                return;
             }
 
-            // No strip needed (or already stripped) -- capture or kill directly
-            if (canCapture)
+            if (wantStrip && hasApparel && stripKillDef != null && !soldier.WorkTagIsDisabled(WorkTags.Violent))
             {
-                Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
-                if (bed != null)
-                {
-                    Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
-                    soldier.jobs.TryTakeOrderedJob(captureJob, JobTag.Misc);
-                    return;
-                }
+                // Strip + Kill as single job
+                Job job = JobMaker.MakeJob(stripKillDef, target);
+                soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+                Log.Message("[Garrison] " + soldier.LabelShort + " -> StripThenKill " + target.LabelShort);
+                return;
             }
 
-            // Fallback: kill
+            if (wantCapture && prisonBed != null)
+            {
+                // Capture only (no strip needed)
+                Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, prisonBed);
+                soldier.jobs.TryTakeOrderedJob(captureJob, JobTag.Misc);
+                Log.Message("[Garrison] " + soldier.LabelShort + " -> Capture " + target.LabelShort);
+                return;
+            }
+
+            // Fallback: kill directly
             if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
             {
                 Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
                 soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+                Log.Message("[Garrison] " + soldier.LabelShort + " -> Kill " + target.LabelShort);
             }
         }
 
@@ -784,3 +740,120 @@ namespace AutoDraft
         }
     }
 }
+
+    // ==================== CUSTOM JOB DRIVER: STRIP THEN KILL ====================
+
+    /// <summary>
+    /// Single job that strips a downed pawn then kills them.
+    /// Both actions happen as sequential toils within ONE job.
+    /// This prevents ThinkTree re-evaluation between strip and kill.
+    /// </summary>
+    public class JobDriver_StripThenKill : JobDriver
+    {
+        private const TargetIndex TargetInd = TargetIndex.A;
+
+        public override bool TryMakePreToilReservations(bool errorOnFailed)
+        {
+            return pawn.Reserve(job.targetA, job, 1, -1, null, errorOnFailed);
+        }
+
+        protected override IEnumerable<Toil> MakeNewToils()
+        {
+            this.FailOnDestroyedOrNull(TargetInd);
+            this.FailOnAggroMentalStateAndHostile(TargetInd);
+
+            // 1. Go to the downed target
+            yield return Toils_Goto.GotoThing(TargetInd, PathEndMode.ClosestTouch);
+
+            // 2. Strip all apparel (if any)
+            Toil stripToil = new Toil();
+            stripToil.initAction = () =>
+            {
+                Pawn target = job.targetA.Thing as Pawn;
+                if (target == null || target.Dead) return;
+                if (target.apparel != null && target.apparel.WornApparelCount > 0)
+                {
+                    target.apparel.DropAll(target.PositionHeld);
+                    Log.Message("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort);
+                }
+            };
+            stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return stripToil;
+
+            // 3. Kill the target (melee attack until dead)
+            Toil killToil = new Toil();
+            killToil.initAction = () =>
+            {
+                Pawn target = job.targetA.Thing as Pawn;
+                if (target == null || target.Dead) return;
+
+                Log.Message("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
+
+                // Direct kill -- deal lethal damage
+                target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 0f, -1f, pawn));
+            };
+            killToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return killToil;
+        }
+    }
+
+    /// <summary>
+    /// Strip then capture: strips apparel, then hauls to prison bed.
+    /// TargetA = downed pawn, TargetB = prison bed.
+    /// </summary>
+    public class JobDriver_StripThenCapture : JobDriver
+    {
+        private const TargetIndex TargetInd = TargetIndex.A;
+        private const TargetIndex BedInd = TargetIndex.B;
+
+        public override bool TryMakePreToilReservations(bool errorOnFailed)
+        {
+            return pawn.Reserve(job.targetA, job, 1, -1, null, errorOnFailed)
+                && pawn.Reserve(job.targetB, job, 1, -1, null, errorOnFailed);
+        }
+
+        protected override IEnumerable<Toil> MakeNewToils()
+        {
+            this.FailOnDestroyedOrNull(TargetInd);
+            this.FailOnDestroyedOrNull(BedInd);
+
+            // 1. Go to the downed target
+            yield return Toils_Goto.GotoThing(TargetInd, PathEndMode.ClosestTouch);
+
+            // 2. Strip
+            Toil stripToil = new Toil();
+            stripToil.initAction = () =>
+            {
+                Pawn target = job.targetA.Thing as Pawn;
+                if (target == null || target.Dead) return;
+                if (target.apparel != null && target.apparel.WornApparelCount > 0)
+                {
+                    target.apparel.DropAll(target.PositionHeld);
+                    Log.Message("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort + " for capture");
+                }
+            };
+            stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return stripToil;
+
+            // 3. Pick up the downed pawn
+            yield return Toils_Haul.StartCarryThing(TargetInd);
+
+            // 4. Carry to prison bed
+            yield return Toils_Goto.GotoThing(BedInd, PathEndMode.InteractionCell);
+
+            // 5. Place in bed
+            Toil placeToil = new Toil();
+            placeToil.initAction = () =>
+            {
+                Pawn target = pawn.carryTracker.CarriedThing as Pawn;
+                Building_Bed bed = job.targetB.Thing as Building_Bed;
+                if (target == null || bed == null) return;
+
+                pawn.carryTracker.TryDropCarriedThing(bed.Position, ThingPlaceMode.Direct, out Thing _);
+                target.guest?.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+                Log.Message("[Garrison] " + pawn.LabelShort + " captured " + target.LabelShort);
+            };
+            placeToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return placeToil;
+        }
+    }
