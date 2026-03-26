@@ -485,12 +485,17 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
-                // Don't interrupt active combat, movement, or post-combat jobs
-                var curJobDef = pawn.CurJob?.def;
-                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
-                    || curJobDef == JobDefOf.Strip || curJobDef == JobDefOf.Capture
-                    || curJobDef == JobDefOf.Goto)
+                // Don't interrupt ANY active job -- let current action complete
+                // Only give new orders when the pawn is truly idle
+                if (pawn.CurJob != null
+                    && pawn.CurJob.def != JobDefOf.Wait
+                    && pawn.CurJob.def != JobDefOf.Wait_MaintainPosture
+                    && pawn.CurJob.def != JobDefOf.GotoWander
+                    && pawn.CurJob.def != JobDefOf.Wait_Wander)
                     continue;
+
+                // At post and idle with no nearby enemy? Just stay. Don't wander.
+                bool atPost = comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) <= 3f;
 
                 // Find nearest enemy
                 Thing enemy = FindNearestEnemy(pawn);
@@ -508,6 +513,10 @@ namespace AutoDraft
                     float dist = pawn.Position.DistanceTo(enemy.Position);
                     float weaponRange = pawn.equipment?.PrimaryEq?.PrimaryVerb?.verbProps?.range ?? 10f;
                     bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+
+                    // At post with enemy out of range? Hold position. Don't chase.
+                    if (atPost && dist > weaponRange && dist > 1.5f)
+                        continue;
 
                     if (dist <= 1.5f)
                     {
@@ -548,12 +557,9 @@ namespace AutoDraft
                 }
                 else
                 {
-                    // No enemies -- go to post
-                    if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
-                    {
-                        if (curJobDef != JobDefOf.Goto)
-                            SendToPost(pawn, comp);
-                    }
+                    // No enemies -- if not at post, go there. If at post, stay put.
+                    if (!atPost && comp.combatPost.IsValid)
+                        SendToPost(pawn, comp);
                 }
             }
         }
