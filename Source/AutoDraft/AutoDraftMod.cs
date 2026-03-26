@@ -362,9 +362,10 @@ namespace AutoDraft
 
         private void HandleDownedEnemy(Pawn soldier, Pawn target)
         {
-            // Animals: different handling (no strip, no prison -- just kill or leave for taming)
+            // Animals: different handling
             if (target.RaceProps.Animal)
             {
+                Log.Message("[Garrison] " + soldier.LabelShort + " -> kill animal " + target.LabelShort);
                 HandleDownedAnimal(soldier, target);
                 return;
             }
@@ -381,6 +382,12 @@ namespace AutoDraft
                 Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
                 canCapture = bed != null;
             }
+
+            Log.Message("[Garrison] " + soldier.LabelShort + " HandleDowned " + target.LabelShort
+                + " mode=" + mode + " wantStrip=" + wantStrip + " wantCapture=" + wantCapture
+                + " canCapture=" + canCapture
+                + " apparel=" + (target.apparel?.WornApparelCount ?? 0)
+                + " violent=" + !soldier.WorkTagIsDisabled(WorkTags.Violent));
 
             // Strip first if enabled and they have apparel
             if (wantStrip && target.apparel != null && target.apparel.WornApparelCount > 0)
