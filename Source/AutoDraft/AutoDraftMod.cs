@@ -138,7 +138,7 @@ namespace AutoDraft
                 if (comp == null || !comp.isSoldier || !comp.autoDrafted) return true;
 
                 // Soldier should fight, not flee. Block the flee job.
-                Log.Message("[Garrison] BLOCKED flee for soldier " + pawn.LabelShort);
+                GarrisonDebug.Log("[Garrison] BLOCKED flee for soldier " + pawn.LabelShort);
                 return false;
             }
             catch { return true; }
@@ -274,7 +274,7 @@ namespace AutoDraft
                     if (c != null && c.isSoldier) soldierCount++;
                     if (c != null && c.autoDrafted) activatedCount++;
                 }
-                Log.Message("[Garrison] TICK state: standing=" + standingThreats
+                GarrisonDebug.Log("[Garrison] TICK state: standing=" + standingThreats
                     + " downed=" + downedHostiles + " threatActive=" + threatActive
                     + " soldiers=" + soldierCount + " activated=" + activatedCount);
             }
@@ -419,7 +419,7 @@ namespace AutoDraft
             // Animals: just kill
             if (target.RaceProps.Animal)
             {
-                Log.Message("[Garrison] " + soldier.LabelShort + " -> kill animal " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> kill animal " + target.LabelShort);
                 HandleDownedAnimal(soldier, target);
                 return;
             }
@@ -434,7 +434,7 @@ namespace AutoDraft
             if (wantCapture)
                 prisonBed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
 
-            Log.Message("[Garrison] " + soldier.LabelShort + " HandleDowned " + target.LabelShort
+            GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " HandleDowned " + target.LabelShort
                 + " mode=" + mode + " strip=" + wantStrip + " capture=" + wantCapture
                 + " bed=" + (prisonBed != null) + " apparel=" + hasApparel);
 
@@ -449,7 +449,7 @@ namespace AutoDraft
                 // Strip + Capture as single job
                 Job job = JobMaker.MakeJob(stripCaptureDef, target, prisonBed);
                 soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                Log.Message("[Garrison] " + soldier.LabelShort + " -> StripThenCapture " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> StripThenCapture " + target.LabelShort);
                 return;
             }
 
@@ -458,7 +458,7 @@ namespace AutoDraft
                 // Strip + Kill as single job
                 Job job = JobMaker.MakeJob(stripKillDef, target);
                 soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                Log.Message("[Garrison] " + soldier.LabelShort + " -> StripThenKill " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> StripThenKill " + target.LabelShort);
                 return;
             }
 
@@ -467,7 +467,7 @@ namespace AutoDraft
                 // Capture only (no strip needed)
                 Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, prisonBed);
                 soldier.jobs.TryTakeOrderedJob(captureJob, JobTag.Misc);
-                Log.Message("[Garrison] " + soldier.LabelShort + " -> Capture " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> Capture " + target.LabelShort);
                 return;
             }
 
@@ -480,13 +480,13 @@ namespace AutoDraft
                 {
                     Job job = JobMaker.MakeJob(stripKillDef, target);
                     soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                    Log.Message("[Garrison] " + soldier.LabelShort + " -> Execute " + target.LabelShort);
+                    GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> Execute " + target.LabelShort);
                 }
                 else
                 {
                     Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
                     soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
-                    Log.Message("[Garrison] " + soldier.LabelShort + " -> Kill(melee) " + target.LabelShort);
+                    GarrisonDebug.Log("[Garrison] " + soldier.LabelShort + " -> Kill(melee) " + target.LabelShort);
                 }
             }
         }
@@ -601,7 +601,7 @@ namespace AutoDraft
                 }
 
                 // LOG: full state for this soldier
-                Log.Message("[Garrison] ENFORCE " + pawn.LabelShort
+                GarrisonDebug.Log("[Garrison] ENFORCE " + pawn.LabelShort
                     + " pos=" + pawn.Position + " atPost=" + atPost
                     + " job=" + curJobName
                     + " enemy=" + (enemy?.LabelShort ?? "NONE")
@@ -614,7 +614,7 @@ namespace AutoDraft
                 if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
                     || curJobDef == JobDefOf.Goto)
                 {
-                    Log.Message("[Garrison]   -> SKIP (active combat job)");
+                    GarrisonDebug.Log("[Garrison]   -> SKIP (active combat job)");
                     continue;
                 }
 
@@ -625,19 +625,19 @@ namespace AutoDraft
                     // At post with enemy out of range? Hold position.
                     if (atPost && dist > weaponRange && dist > 1.5f)
                     {
-                        Log.Message("[Garrison]   -> HOLD at post (enemy out of range)");
+                        GarrisonDebug.Log("[Garrison]   -> HOLD at post (enemy out of range)");
                         continue;
                     }
 
                     if (dist <= 1.5f)
                     {
-                        Log.Message("[Garrison]   -> MELEE " + enemy.LabelShort);
+                        GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else if (dist <= weaponRange && hasRangedWeapon)
                     {
-                        Log.Message("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
+                        GarrisonDebug.Log("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
@@ -646,7 +646,7 @@ namespace AutoDraft
                         IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
                         if (kitePos.IsValid)
                         {
-                            Log.Message("[Garrison]   -> KITE to " + kitePos + " (enemy at " + dist.ToString("F0") + ")");
+                            GarrisonDebug.Log("[Garrison]   -> KITE to " + kitePos + " (enemy at " + dist.ToString("F0") + ")");
                             Job moveJob = JobMaker.MakeJob(JobDefOf.Goto, kitePos);
                             moveJob.locomotionUrgency = LocomotionUrgency.Sprint;
                             pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
@@ -654,13 +654,13 @@ namespace AutoDraft
                     }
                     else if (!hasRangedWeapon)
                     {
-                        Log.Message("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee)");
+                        GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort + " (melee)");
                         Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                         pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                     }
                     else
                     {
-                        Log.Message("[Garrison]   -> RETURN to post (enemy too far: " + dist.ToString("F0") + ")");
+                        GarrisonDebug.Log("[Garrison]   -> RETURN to post (enemy too far: " + dist.ToString("F0") + ")");
                         if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
                             SendToPost(pawn, comp);
                     }
@@ -676,7 +676,7 @@ namespace AutoDraft
                             IntVec3 aidPos = GetKitePosition(pawn, attackingEnemy, weaponRange);
                             if (aidPos.IsValid)
                             {
-                                Log.Message("[Garrison]   -> AID " + soldierUnderAttack.LabelShort
+                                GarrisonDebug.Log("[Garrison]   -> AID " + soldierUnderAttack.LabelShort
                                     + " against " + attackingEnemy.LabelShort + " at " + aidPos);
                                 Job aidJob = JobMaker.MakeJob(JobDefOf.Goto, aidPos);
                                 aidJob.locomotionUrgency = LocomotionUrgency.Sprint;
@@ -689,19 +689,19 @@ namespace AutoDraft
                     // Nobody needs help
                     if (!atPost && comp.combatPost.IsValid)
                     {
-                        Log.Message("[Garrison]   -> GOTO post");
+                        GarrisonDebug.Log("[Garrison]   -> GOTO post");
                         SendToPost(pawn, comp);
                     }
                     else if (curJobDef != JobDefOf.Wait_Combat)
                     {
-                        Log.Message("[Garrison]   -> GUARD at post");
+                        GarrisonDebug.Log("[Garrison]   -> GUARD at post");
                         Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
                         guardJob.expiryInterval = 300;
                         pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
                     }
                     else
                     {
-                        Log.Message("[Garrison]   -> HOLDING (already guarding)");
+                        GarrisonDebug.Log("[Garrison]   -> HOLDING (already guarding)");
                     }
                 }
             }
@@ -884,7 +884,7 @@ namespace AutoDraft
                 if (target.apparel != null && target.apparel.WornApparelCount > 0)
                 {
                     target.apparel.DropAll(target.PositionHeld);
-                    Log.Message("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort);
+                    GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort);
                 }
             };
             stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
@@ -897,7 +897,7 @@ namespace AutoDraft
                 Pawn target = job.targetA.Thing as Pawn;
                 if (target == null || target.Dead) return;
 
-                Log.Message("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
                 // Direct kill -- deal lethal damage
                 target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 0f, -1f, pawn));
@@ -939,7 +939,7 @@ namespace AutoDraft
                 if (target.apparel != null && target.apparel.WornApparelCount > 0)
                 {
                     target.apparel.DropAll(target.PositionHeld);
-                    Log.Message("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort + " for capture");
+                    GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " stripped " + target.LabelShort + " for capture");
                 }
             };
             stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
@@ -961,7 +961,7 @@ namespace AutoDraft
 
                 pawn.carryTracker.TryDropCarriedThing(bed.Position, ThingPlaceMode.Direct, out Thing _);
                 target.guest?.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
-                Log.Message("[Garrison] " + pawn.LabelShort + " captured " + target.LabelShort);
+                GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " captured " + target.LabelShort);
             };
             placeToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return placeToil;
