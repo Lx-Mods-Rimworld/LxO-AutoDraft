@@ -195,7 +195,14 @@ namespace AutoDraft
                 defaultLabel = "AD_ToggleSoldier".Translate(),
                 defaultDesc = "AD_ToggleSoldier_Desc".Translate(),
                 isActive = () => isSoldier,
-                toggleAction = () => isSoldier = !isSoldier,
+                toggleAction = () =>
+                    {
+                        isSoldier = !isSoldier;
+                        if (isSoldier && Pawn.playerSettings != null)
+                        {
+                            Pawn.playerSettings.hostilityResponse = HostilityResponseMode.Attack;
+                        }
+                    },
                 icon = ContentFinder<Texture2D>.Get("UI/Commands/Draft", true)
             };
 
@@ -520,6 +527,10 @@ namespace AutoDraft
                 comp.autoDrafted = true;
                 activated++;
 
+                // Soldiers must be set to Attack, not Flee/Ignore
+                if (pawn.playerSettings != null)
+                    pawn.playerSettings.hostilityResponse = HostilityResponseMode.Attack;
+
                 // Send to combat post -- undrafted, using AttackMelee/Goto
                 SendToPost(pawn, comp);
             }
@@ -550,27 +561,39 @@ namespace AutoDraft
         /// </summary>
         private void EnforcePosts()
         {
-            // First pass: find if any soldier is being attacked (for mutual aid)
-            Pawn soldierUnderAttack = null;
-            Thing attackingEnemy = null;
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
-            {
-                if (pawn.Dead || pawn.Downed) continue;
-                var comp = pawn.GetComp<CompSoldier>();
-                if (comp == null || !comp.autoDrafted) continue;
+            // First pass: find if any colonist is in danger (kidnapped, under attack)
+            Pawn colonistInDanger = null;
+            Thing dangerSource = null;
+            bool isKidnapping = false;
 
-                // Check if this soldier is being attacked in melee
-                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
+            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
+            {
+                if (enemy.Dead || enemy.Downed || !enemy.HostileTo(Faction.OfPlayer)) continue;
+
+                // Kidnapping: hostile carrying a colonist -- highest priority
+                Thing carried = enemy.carryTracker?.CarriedThing;
+                if (carried is Pawn carriedPawn && carriedPawn.Faction == Faction.OfPlayer)
                 {
-                    if (enemy.Dead || enemy.Downed || !enemy.HostileTo(Faction.OfPlayer)) continue;
-                    if (enemy.CurJob?.targetA.Thing == pawn && enemy.Position.DistanceTo(pawn.Position) < 5f)
+                    colonistInDanger = carriedPawn;
+                    dangerSource = enemy;
+                    isKidnapping = true;
+                    GarrisonDebug.Log("[Garrison] DANGER: " + enemy.LabelShort
+                        + " KIDNAPPING " + carriedPawn.LabelShort
+                        + " at " + enemy.Position);
+                    break; // Kidnapping is highest priority
+                }
+
+                // Enemy targeting a colonist (melee or ranged -- any distance)
+                if (colonistInDanger == null)
+                {
+                    Thing targetThing = enemy.CurJob?.targetA.Thing;
+                    if (targetThing is Pawn targetPawn && targetPawn.Faction == Faction.OfPlayer
+                        && !targetPawn.Dead)
                     {
-                        soldierUnderAttack = pawn;
-                        attackingEnemy = enemy;
-                        break;
+                        colonistInDanger = targetPawn;
+                        dangerSource = enemy;
                     }
                 }
-                if (soldierUnderAttack != null) break;
             }
 
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
@@ -581,6 +604,11 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
+                // Enforce Attack response -- catches soldiers from saves or manual changes
+                if (pawn.playerSettings != null
+                    && pawn.playerSettings.hostilityResponse != HostilityResponseMode.Attack)
+                    pawn.playerSettings.hostilityResponse = HostilityResponseMode.Attack;
+
                 var curJobDef = pawn.CurJob?.def;
                 string curJobName = curJobDef?.defName ?? "NONE";
                 bool atPost = comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) <= 3f;
@@ -589,13 +617,14 @@ namespace AutoDraft
                 bool hasRangedWeapon = pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
                 float enemyDist = enemy != null ? pawn.Position.DistanceTo(enemy.Position) : -1f;
 
-                // Mutual aid: if squadmate under attack, prioritize that enemy
-                if (attackingEnemy != null && soldierUnderAttack != pawn)
+                // Mutual aid: if colonist in danger, prioritize that threat
+                if (dangerSource != null && colonistInDanger != pawn)
                 {
-                    float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
-                    if (aidDist < 30f)
+                    float aidDist = pawn.Position.DistanceTo(dangerSource.Position);
+                    float aidRange = isKidnapping ? 999f : 30f; // Chase kidnappers anywhere
+                    if (aidDist < aidRange)
                     {
-                        enemy = attackingEnemy;
+                        enemy = dangerSource;
                         enemyDist = aidDist;
                     }
                 }
@@ -608,13 +637,43 @@ namespace AutoDraft
                     + " dist=" + enemyDist.ToString("F0")
                     + " range=" + weaponRange.ToString("F0")
                     + " ranged=" + hasRangedWeapon
-                    + " underAttack=" + (soldierUnderAttack?.LabelShort ?? "NONE"));
+                    + " inDanger=" + (colonistInDanger?.LabelShort ?? "NONE")
+                    + (isKidnapping ? " KIDNAP!" : ""));
 
-                // Don't interrupt active combat/movement jobs
-                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee
-                    || curJobDef == JobDefOf.Goto)
+                // Don't interrupt active combat jobs -- UNLESS target is out of weapon range
+                if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee)
                 {
-                    GarrisonDebug.Log("[Garrison]   -> SKIP (active combat job)");
+                    Thing jobTarget = pawn.CurJob?.targetA.Thing;
+                    if (jobTarget != null)
+                    {
+                        float targetDist = pawn.Position.DistanceTo(jobTarget.Position);
+                        bool inRange = curJobDef == JobDefOf.AttackMelee
+                            ? targetDist <= 1.5f
+                            : targetDist <= weaponRange;
+
+                        if (inRange)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SKIP (combat, target in range)");
+                            continue;
+                        }
+
+                        // Target moved out of range -- cancel useless attack
+                        GarrisonDebug.Log("[Garrison]   -> CANCEL " + curJobName
+                            + " on " + jobTarget.LabelShort
+                            + " (out of range: " + targetDist.ToString("F0")
+                            + " > " + weaponRange.ToString("F0") + ")");
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        // Fall through to reassignment below
+                    }
+                    else
+                    {
+                        GarrisonDebug.Log("[Garrison]   -> SKIP (combat job)");
+                        continue;
+                    }
+                }
+                else if (curJobDef == JobDefOf.Goto)
+                {
+                    GarrisonDebug.Log("[Garrison]   -> SKIP (moving)");
                     continue;
                 }
 
@@ -622,10 +681,20 @@ namespace AutoDraft
                 {
                     float dist = enemyDist;
 
-                    // At post with enemy out of range? Hold position.
+                    // At post with enemy out of range? Hold position -- but ensure guarding, not working
                     if (atPost && dist > weaponRange && dist > 1.5f)
                     {
-                        GarrisonDebug.Log("[Garrison]   -> HOLD at post (enemy out of range)");
+                        if (curJobDef != JobDefOf.Wait_Combat)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> GUARD at post (enemy out of range, was " + curJobName + ")");
+                            Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
+                            guardJob.expiryInterval = 300;
+                            pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
+                        }
+                        else
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> HOLD at post (enemy out of range)");
+                        }
                         continue;
                     }
 
@@ -667,22 +736,34 @@ namespace AutoDraft
                 }
                 else
                 {
-                    // No enemies visible. Check if squadmate needs help.
-                    if (soldierUnderAttack != null && soldierUnderAttack != pawn && attackingEnemy != null)
+                    // No enemies visible. Check if colonist needs help.
+                    if (colonistInDanger != null && colonistInDanger != pawn && dangerSource != null)
                     {
-                        float aidDist = pawn.Position.DistanceTo(attackingEnemy.Position);
-                        if (aidDist < 40f)
+                        float aidDist = pawn.Position.DistanceTo(dangerSource.Position);
+                        float aidRange = isKidnapping ? 999f : 40f;
+                        if (aidDist < aidRange)
                         {
-                            IntVec3 aidPos = GetKitePosition(pawn, attackingEnemy, weaponRange);
-                            if (aidPos.IsValid)
+                            if (hasRangedWeapon)
                             {
-                                GarrisonDebug.Log("[Garrison]   -> AID " + soldierUnderAttack.LabelShort
-                                    + " against " + attackingEnemy.LabelShort + " at " + aidPos);
-                                Job aidJob = JobMaker.MakeJob(JobDefOf.Goto, aidPos);
-                                aidJob.locomotionUrgency = LocomotionUrgency.Sprint;
-                                pawn.jobs.TryTakeOrderedJob(aidJob, JobTag.Misc);
-                                continue;
+                                IntVec3 aidPos = GetKitePosition(pawn, dangerSource, weaponRange);
+                                if (aidPos.IsValid)
+                                {
+                                    GarrisonDebug.Log("[Garrison]   -> AID " + colonistInDanger.LabelShort
+                                        + " against " + dangerSource.LabelShort + " move to " + aidPos
+                                        + (isKidnapping ? " (RESCUE)" : ""));
+                                    Job aidJob = JobMaker.MakeJob(JobDefOf.Goto, aidPos);
+                                    aidJob.locomotionUrgency = LocomotionUrgency.Sprint;
+                                    pawn.jobs.TryTakeOrderedJob(aidJob, JobTag.Misc);
+                                    continue;
+                                }
                             }
+                            // Melee or no kite position: charge directly
+                            GarrisonDebug.Log("[Garrison]   -> AID (charge) " + colonistInDanger.LabelShort
+                                + " against " + dangerSource.LabelShort
+                                + (isKidnapping ? " (RESCUE)" : ""));
+                            Job chargeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, dangerSource);
+                            pawn.jobs.TryTakeOrderedJob(chargeJob, JobTag.Misc);
+                            continue;
                         }
                     }
 

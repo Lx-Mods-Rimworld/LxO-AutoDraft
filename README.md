@@ -58,7 +58,7 @@ English, German, Chinese Simplified, Japanese, Korean, Russian, Spanish
 
 Developed by **Lexxers** ([Lx-Mods-Rimworld](https://github.com/Lx-Mods-Rimworld))
 
-Free forever. Donations: **[Ko-fi](https://ko-fi.com/lexxers)**
+Free forever. Donations: **[Ko-fi](https://ko-fi.com/lexxes)**
 
 ## License
 
