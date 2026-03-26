@@ -12,6 +12,14 @@ namespace AutoDraft
 {
     // ==================== SETTINGS ====================
 
+    public enum DownedHandling
+    {
+        Kill,
+        StripThenKill,
+        Capture,
+        StripThenCapture
+    }
+
     public class AutoDraftSettings : ModSettings
     {
         public static bool enabled = true;
@@ -19,6 +27,7 @@ namespace AutoDraft
         public static bool fleeNonCombatants = true;
         public static bool showAlert = true;
         public static int undraftDelay = 500;
+        public static DownedHandling downedHandling = DownedHandling.StripThenCapture;
 
         public override void ExposeData()
         {
@@ -27,6 +36,7 @@ namespace AutoDraft
             Scribe_Values.Look(ref fleeNonCombatants, "fleeNonCombatants", true);
             Scribe_Values.Look(ref showAlert, "showAlert", true);
             Scribe_Values.Look(ref undraftDelay, "undraftDelay", 500);
+            Scribe_Values.Look(ref downedHandling, "downedHandling", DownedHandling.StripThenCapture);
             base.ExposeData();
         }
 
@@ -50,6 +60,17 @@ namespace AutoDraft
                 l.Label("AD_UndraftDelay".Translate() + ": " + (undraftDelay / 60f).ToString("F1") + "s");
                 undraftDelay = (int)l.Slider(undraftDelay, 60, 3000);
             }
+
+            l.GapLine();
+            l.Label("AD_DownedHandling".Translate());
+            if (l.RadioButton("AD_Downed_Kill".Translate(), downedHandling == DownedHandling.Kill))
+                downedHandling = DownedHandling.Kill;
+            if (l.RadioButton("AD_Downed_StripKill".Translate(), downedHandling == DownedHandling.StripThenKill))
+                downedHandling = DownedHandling.StripThenKill;
+            if (l.RadioButton("AD_Downed_Capture".Translate(), downedHandling == DownedHandling.Capture))
+                downedHandling = DownedHandling.Capture;
+            if (l.RadioButton("AD_Downed_StripCapture".Translate(), downedHandling == DownedHandling.StripThenCapture))
+                downedHandling = DownedHandling.StripThenCapture;
 
             l.GapLine();
             l.Label("AD_AssignHint".Translate());
@@ -273,42 +294,118 @@ namespace AutoDraft
         }
 
         /// <summary>
-        /// Send soldiers to finish off downed enemies.
+        /// Handle downed enemies based on settings:
+        /// Kill, Strip+Kill, Capture, Strip+Capture.
+        /// Capture falls back to Strip+Kill if no prison bed.
         /// </summary>
         private void FinishOffDowned()
         {
+            // Track which downed enemies are already being handled
+            var handledEnemies = new HashSet<int>();
+
             foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
-                if (soldier.WorkTagIsDisabled(WorkTags.Violent)) continue;
 
-                // Already attacking something, let them finish
-                if (soldier.CurJob?.def == JobDefOf.AttackMelee || soldier.CurJob?.def == JobDefOf.AttackStatic)
+                // Already busy with a downed enemy action
+                if (soldier.CurJob?.def == JobDefOf.AttackMelee
+                    || soldier.CurJob?.def == JobDefOf.Strip
+                    || soldier.CurJob?.def == JobDefOf.Capture)
                     continue;
 
-                // Find nearest downed hostile
-                Pawn target = null;
-                float bestDist = float.MaxValue;
-                foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
-                {
-                    if (enemy.Dead || !enemy.Downed) continue;
-                    if (!enemy.HostileTo(Faction.OfPlayer)) continue;
-                    float dist = soldier.Position.DistanceTo(enemy.Position);
-                    if (dist < bestDist)
-                    {
-                        bestDist = dist;
-                        target = enemy;
-                    }
-                }
+                // Find nearest unhandled downed hostile
+                Pawn target = FindNearestDownedEnemy(soldier, handledEnemies);
+                if (target == null) continue;
+                handledEnemies.Add(target.thingIDNumber);
 
-                if (target != null)
+                HandleDownedEnemy(soldier, target);
+            }
+        }
+
+        private Pawn FindNearestDownedEnemy(Pawn soldier, HashSet<int> exclude)
+        {
+            Pawn best = null;
+            float bestDist = float.MaxValue;
+            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned)
+            {
+                if (enemy.Dead || !enemy.Downed) continue;
+                if (!enemy.HostileTo(Faction.OfPlayer)) continue;
+                if (exclude.Contains(enemy.thingIDNumber)) continue;
+                float dist = soldier.Position.DistanceTo(enemy.Position);
+                if (dist < bestDist)
                 {
-                    Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
-                    soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+                    bestDist = dist;
+                    best = enemy;
                 }
             }
+            return best;
+        }
+
+        private void HandleDownedEnemy(Pawn soldier, Pawn target)
+        {
+            // Animals: different handling (no strip, no prison -- just kill or leave for taming)
+            if (target.RaceProps.Animal)
+            {
+                HandleDownedAnimal(soldier, target);
+                return;
+            }
+
+            // Humanlike enemies
+            var mode = AutoDraftSettings.downedHandling;
+            bool wantCapture = mode == DownedHandling.Capture || mode == DownedHandling.StripThenCapture;
+            bool wantStrip = mode == DownedHandling.StripThenKill || mode == DownedHandling.StripThenCapture;
+
+            // Check if capture is possible (need a prisoner bed)
+            bool canCapture = false;
+            if (wantCapture)
+            {
+                Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
+                canCapture = bed != null;
+            }
+
+            // Strip first if enabled and they have apparel
+            if (wantStrip && target.apparel != null && target.apparel.WornApparelCount > 0)
+            {
+                if (!soldier.WorkTagIsDisabled(WorkTags.Hauling))
+                {
+                    Job stripJob = JobMaker.MakeJob(JobDefOf.Strip, target);
+                    soldier.jobs.TryTakeOrderedJob(stripJob, JobTag.Misc);
+                    return; // Next tick will capture or kill after stripping
+                }
+            }
+
+            if (canCapture)
+            {
+                Building_Bed bed = RestUtility.FindBedFor(target, soldier, true, false, GuestStatus.Prisoner);
+                if (bed != null)
+                {
+                    Job captureJob = JobMaker.MakeJob(JobDefOf.Capture, target, bed);
+                    soldier.jobs.TryTakeOrderedJob(captureJob, JobTag.Misc);
+                    return;
+                }
+            }
+
+            // Fallback: kill
+            if (!soldier.WorkTagIsDisabled(WorkTags.Violent))
+            {
+                Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, target);
+                soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+            }
+        }
+
+        /// <summary>
+        /// Handle downed animals: kill them (for meat/leather).
+        /// Manhunter animals that go down are a free resource.
+        /// </summary>
+        private void HandleDownedAnimal(Pawn soldier, Pawn animal)
+        {
+            if (soldier.WorkTagIsDisabled(WorkTags.Violent)) return;
+
+            // Just kill downed hostile animals -- they'll be butchered later
+            Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, animal);
+            soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
         }
 
         private void ActivateSoldiers()

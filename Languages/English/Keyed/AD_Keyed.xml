@@ -2,20 +2,26 @@
 <LanguageData>
   <!-- Settings -->
   <AD_Enabled>Enable Auto Draft</AD_Enabled>
-  <AD_AutoUndraft>Auto-undraft when threats cleared</AD_AutoUndraft>
-  <AD_AutoUndraft_Desc>Soldiers automatically undraft and return to work after all hostiles are down.</AD_AutoUndraft_Desc>
+  <AD_AutoUndraft>Stand down when threats cleared</AD_AutoUndraft>
+  <AD_AutoUndraft_Desc>Soldiers return to work after all hostiles are eliminated.</AD_AutoUndraft_Desc>
   <AD_FleeNonCombatants>Pacifists flee to safety</AD_FleeNonCombatants>
   <AD_FleeNonCombatants_Desc>Pacifists sprint to the safest roofed area in your home zone when threats appear.</AD_FleeNonCombatants_Desc>
-  <AD_ShowAlert>Show draft/undraft alerts</AD_ShowAlert>
-  <AD_UndraftDelay>Delay before undrafting</AD_UndraftDelay>
-  <AD_MinSkill>Minimum combat skill for auto-soldier</AD_MinSkill>
-  <AD_AssignHint>Mark individual pawns as soldiers using the "Soldier" button on selected colonists. Assign combat posts where they will hold position during threats.</AD_AssignHint>
+  <AD_ShowAlert>Show alerts</AD_ShowAlert>
+  <AD_UndraftDelay>Delay before standing down</AD_UndraftDelay>
+  <AD_AssignHint>Mark pawns as soldiers with the "Soldier" button. Set combat posts where they hold position. After combat, soldiers handle downed enemies based on your settings below.</AD_AssignHint>
+
+  <!-- Downed enemy handling -->
+  <AD_DownedHandling>Downed enemy handling:</AD_DownedHandling>
+  <AD_Downed_Kill>Kill immediately</AD_Downed_Kill>
+  <AD_Downed_StripKill>Strip apparel, then kill (prevents tainted clothes)</AD_Downed_StripKill>
+  <AD_Downed_Capture>Capture to prison (falls back to kill if no bed)</AD_Downed_Capture>
+  <AD_Downed_StripCapture>Strip apparel, then capture (falls back to strip + kill)</AD_Downed_StripCapture>
 
   <!-- Gizmos (pawn buttons) -->
   <AD_ToggleSoldier>Soldier</AD_ToggleSoldier>
-  <AD_ToggleSoldier_Desc>Toggle this pawn as a soldier. Soldiers auto-draft and go to their combat post when threats appear.</AD_ToggleSoldier_Desc>
+  <AD_ToggleSoldier_Desc>Toggle this pawn as a soldier. Soldiers guard their combat post when threats appear and handle downed enemies automatically.</AD_ToggleSoldier_Desc>
   <AD_SetPost>Set Combat Post</AD_SetPost>
-  <AD_SetPost_Desc>Click a location on the map where this soldier will hold position during combat.</AD_SetPost_Desc>
+  <AD_SetPost_Desc>Click a location where this soldier will hold position during combat.</AD_SetPost_Desc>
   <AD_SetPost_Current>Combat post at ({0}, {1}). Click to change.</AD_SetPost_Current>
   <AD_ClearPost>Clear Post</AD_ClearPost>
   <AD_PostSet>{0}'s combat post set to ({1}, {2})</AD_PostSet>
