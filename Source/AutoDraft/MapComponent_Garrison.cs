@@ -501,14 +501,13 @@ namespace AutoDraft
                 {
                     float dist = enemyDist;
 
-                    // At post with enemy out of range?
-                    // Melee soldiers: if a colonist is under attack, charge REGARDLESS of distance
-                    // Otherwise hold at post if enemy is far
-                    bool meleeAndColonistInDanger = !hasRangedWeapon && colonistInDanger != null;
-                    // Ranged: hold at 80% of max range (not the edge -- gives room for enemy movement)
-                    // Melee: engage within 15 tiles, chase fleeing enemies further
+                    // At post with enemy out of range? Hold position.
+                    // Melee soldiers: hold at post until enemy breaches the ranged line.
+                    // Do NOT charge just because a ranged soldier is "in danger" at range --
+                    // the ranged guys handle ranged threats. Melee intercepts close threats only.
+                    // Ranged: hold at 80% of max range
                     float holdRange = hasRangedWeapon ? weaponRange * 0.8f : 15f;
-                    if (atPost && dist > holdRange && dist > 1.5f && !meleeAndColonistInDanger)
+                    if (atPost && dist > holdRange && dist > 1.5f)
                     {
                         if (curJobDef != JobDefOf.Wait_Combat)
                         {
@@ -613,10 +612,11 @@ namespace AutoDraft
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                         }
-                        else if (meleeAndColonistInDanger)
+                        else if (colonistInDanger != null && dist <= 12f)
                         {
-                            // Colonist under fire -- rush to help
-                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort + " (colonist under fire!)");
+                            // Colonist in danger AND enemy is close enough to intercept -- go help
+                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
+                                + " (protecting " + colonistInDanger.LabelShort + ", dist=" + dist.ToString("F0") + ")");
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                         }
