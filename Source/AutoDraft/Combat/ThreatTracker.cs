@@ -97,10 +97,10 @@ namespace AutoDraft.Combat
                 if (enemy == null) { debugNonPawn++; continue; }
                 if (enemy.Dead) { debugDead++; continue; }
 
-                // Skip dormant/inactive enemies (sleeping mechs, ancient danger)
-                // They have no job, aren't moving, and aren't a real threat
-                if (enemy.CurJob == null && (enemy.pather == null || !enemy.pather.Moving)
-                    && !enemy.Awake()) continue;
+                // Skip dormant/inactive enemies (sleeping mechs, ancient danger, mech clusters)
+                // They have no job and aren't moving -- not an active threat
+                if (enemy.CurJob == null && (enemy.pather == null || !enemy.pather.Moving))
+                    continue;
 
                 if (enemy.Downed)
                 {
