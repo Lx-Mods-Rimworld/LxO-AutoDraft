@@ -44,25 +44,25 @@ namespace AutoDraft
             stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return stripToil;
 
-            // 3. Execute using vanilla's execution system (knife animation, proper kill)
-            Toil executeToil = new Toil();
-            executeToil.initAction = () =>
+            // 3. Queue vanilla execution as next job, then end our job cleanly
+            // Can't call StartJob from inside a toil -- queue it and let our job finish
+            Toil queueExecuteToil = new Toil();
+            queueExecuteToil.initAction = () =>
             {
                 Pawn target = job.targetA.Thing as Pawn;
                 if (target == null || target.Dead) return;
 
                 GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
-                // Use vanilla ExecuteEntity (humanlike) or Slaughter (animal)
                 JobDef executeDef = target.RaceProps.Animal
                     ? JobDefOf.Slaughter
                     : JobDefOf.ExecuteEntity;
 
                 Job executeJob = JobMaker.MakeJob(executeDef, target);
-                pawn.jobs.StartJob(executeJob, JobCondition.Succeeded);
+                pawn.jobs.jobQueue.EnqueueFirst(executeJob);
             };
-            executeToil.defaultCompleteMode = ToilCompleteMode.Instant;
-            yield return executeToil;
+            queueExecuteToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return queueExecuteToil;
         }
     }
 
