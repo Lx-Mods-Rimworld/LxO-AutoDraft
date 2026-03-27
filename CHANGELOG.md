@@ -2,6 +2,38 @@
 
 All notable changes to this mod will be documented in this file.
 
+## [2.0.0] - 2026-03-27 -- Smart Soldiers (Combat AI Rework)
+
+**Early release -- rework begun, many more tests needed. First look is promising. Please report any issues!**
+
+### Major: Combat AI Overhaul
+- Complete rewrite of soldier combat logic into modular architecture (ThreatTracker, TargetSelector, PositionEvaluator, SquadCoordination, WeaponTactics)
+- Combat intelligence scales with CombatInstinct level from Learn to Survive. If LTS not installed, all soldiers act at max level.
+- Smart target selection: soldiers prioritize enemies targeting them, high-DPS threats, sappers, and doomsday launchers
+- Cover seeking: soldiers find positions with cover near their post (Level 3+)
+- Squad coordination: focus fire on the most dangerous enemy (Level 5+)
+- Auto-retreat when badly wounded (Level 9+)
+- Works independently from Smart Gear -- if Smart Gear is installed, weapon management is deferred to it
+
+### Melee Soldiers: Bodyguard Role
+- Melee soldiers no longer charge across the map into friendly fire
+- New role: bodyguard/interceptor -- they hold at the ranged line and intercept enemies that breach within 8 tiles
+- Only engage when enemy is close enough to threaten ranged soldiers
+- Hunt fleeing enemies only when no active threats remain
+
+### Ranged Soldiers
+- Position at 80% of weapon range (not the edge where any movement causes cancel loops)
+- Optimal range adapts per weapon: short bow holds at 15, sniper rifle at 30
+- Smart weapon switching: melee soldiers with ranged sidearm shoot approaching enemies, swap to melee when close
+
+### Fixes
+- Single small manhunter animals no longer mobilize entire garrison
+- Sleeping soldiers are woken up during raids
+- Off-post soldiers doing recreation/eating return to post during combat
+- Rescue and tending are no longer interrupted by combat reassignment
+- Range precision fix: attacks no longer cancelled at exact weapon range boundary
+- Melee AttackMelee no longer cancelled while pawn is closing distance
+
 ## [1.1.0] - 2026-03-26
 
 ### Features
