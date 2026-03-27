@@ -88,6 +88,11 @@ namespace AutoDraft
                     ActivateSoldiers();
 
                 EnforcePosts();
+
+                // Also handle downed enemies during active combat
+                // Soldiers not engaged with standing threats can finish off downed enemies
+                if (downedHostiles)
+                    FinishOffDowned();
             }
             else if (!standingThreats && downedHostiles)
             {
