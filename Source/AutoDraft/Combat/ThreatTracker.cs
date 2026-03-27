@@ -139,20 +139,31 @@ namespace AutoDraft.Combat
             else
                 threatCenter = IntVec3.Invalid;
 
-            // Debug: log EVERY threat with ID to check for duplicates
-            if (tick % 300 == 0 && (debugTotal > 0 || activeThreats.Count > 0 || downedHostiles.Count > 0))
+            // Debug: dump FULL state of every hostile in cache (before and after filtering)
+            if (tick % 300 == 0 && debugTotal > 0)
             {
-                string threatList = "";
-                for (int d = 0; d < activeThreats.Count; d++)
-                {
-                    var t = activeThreats[d];
-                    threatList += " [" + t.pawn.LabelShort + " id=" + t.pawn.thingIDNumber
-                        + " pos=" + t.pawn.Position + " job=" + (t.pawn.CurJob?.def?.defName ?? "NONE") + "]";
-                }
-                GarrisonDebug.Log("[Garrison] ThreatTracker: cache=" + debugTotal
-                    + " nonPawn=" + debugNonPawn + " dead=" + debugDead
+                GarrisonDebug.Log("[Garrison] ThreatTracker: raw=" + rawHostileCount
                     + " standing=" + activeThreats.Count + " downed=" + downedHostiles.Count
-                    + threatList);
+                    + " filtered=" + (rawHostileCount - activeThreats.Count - downedHostiles.Count));
+
+                // Re-iterate cache to log EVERY hostile with full state
+                foreach (IAttackTarget tgt in map.attackTargetsCache.TargetsHostileToFaction(playerFaction))
+                {
+                    Pawn ep = tgt as Pawn;
+                    if (ep == null || ep.Dead) continue;
+                    GarrisonDebug.Log("[Garrison]   HOSTILE: " + ep.LabelShort
+                        + " id=" + ep.thingIDNumber
+                        + " pos=" + ep.Position
+                        + " job=" + (ep.CurJob?.def?.defName ?? "NONE")
+                        + " downed=" + ep.Downed
+                        + " threatDisabled=" + ep.ThreatDisabled(null)
+                        + " moving=" + (ep.pather?.Moving ?? false)
+                        + " faction=" + (ep.Faction?.Name ?? "NONE")
+                        + " race=" + ep.def.defName
+                        + " mental=" + (ep.InMentalState ? ep.MentalState.def.defName : "none")
+                        + " lord=" + (ep.GetLord()?.LordJob?.GetType()?.Name ?? "NONE")
+                        + " spawned=" + ep.Spawned);
+                }
             }
 
             // Raid type detection (every 300 ticks)

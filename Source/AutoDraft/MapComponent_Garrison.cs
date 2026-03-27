@@ -11,6 +11,7 @@ namespace AutoDraft
     {
         private bool threatActive;
         private int lastThreatTick = -9999;
+        private int baselineHostileCount; // dormant mechs etc. -- the "normal" hostile count
         private ThreatTracker threatTracker;
         private SquadCoordination squadCoord;
 
@@ -27,10 +28,6 @@ namespace AutoDraft
 
             threatTracker.Refresh();
             bool downedHostiles = threatTracker.HasDownedHostiles;
-
-            // Fast detection: ANY hostile alive on map (before ThreatDisabled filter)
-            // This catches raiders the instant they spawn, even before the Lord assigns a job
-            bool anyHostileOnMap = threatTracker.HasAnyHostile;
 
             // Engagement filter: only active threats for EnforcePosts targeting
             bool standingThreats = false;
@@ -107,7 +104,7 @@ namespace AutoDraft
                     + " soldiers=" + soldierCount + " activated=" + activatedCount);
             }
 
-            if (anyHostileOnMap && !threatActive)
+            if (standingThreats && !threatActive)
             {
                 // Threat just appeared -- activate soldiers
                 threatActive = true;
