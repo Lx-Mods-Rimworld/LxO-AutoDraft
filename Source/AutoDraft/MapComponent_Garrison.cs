@@ -73,8 +73,21 @@ namespace AutoDraft
                 }
             }
 
-            // Debug: log state every 300 ticks (~5 seconds) if there are downed hostiles
-            if (downedHostiles && Find.TickManager.TicksGame % 300 == 0)
+            // Safety timeout: if threatActive but no threats for 5 minutes, force stand-down
+            // Handles edge cases where threats disappear but state doesn't reset
+            if (threatActive && !standingThreats && !downedHostiles)
+            {
+                int ticksSince = Find.TickManager.TicksGame - lastThreatTick;
+                if (ticksSince >= AutoDraftSettings.undraftDelay)
+                {
+                    threatActive = false;
+                    if (AutoDraftSettings.autoUndraft)
+                        DeactivateSoldiers();
+                }
+            }
+
+            // Debug: log state every 300 ticks when threat is active
+            if (threatActive && Find.TickManager.TicksGame % 300 == 0)
             {
                 int soldierCount = 0;
                 int activatedCount = 0;
