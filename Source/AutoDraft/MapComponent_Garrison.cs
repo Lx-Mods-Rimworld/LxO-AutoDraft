@@ -26,8 +26,24 @@ namespace AutoDraft
             if (Find.TickManager.TicksGame % 60 != 0) return;
 
             threatTracker.Refresh();
-            bool standingThreats = threatTracker.HasActiveThreats;
             bool downedHostiles = threatTracker.HasDownedHostiles;
+
+            // Filter trivial threats: single small manhunter animal doesn't warrant garrison mobilization
+            bool standingThreats = false;
+            if (threatTracker.HasActiveThreats)
+            {
+                var threats = threatTracker.ActiveThreats;
+                if (threats.Count == 1 && threats[0].pawn.RaceProps.Animal
+                    && threats[0].pawn.RaceProps.baseBodySize < 1f)
+                {
+                    // Single small animal (hare, squirrel, etc.) -- let vanilla hostility response handle it
+                    standingThreats = false;
+                }
+                else
+                {
+                    standingThreats = true;
+                }
+            }
 
             // Debug: log state every 300 ticks (~5 seconds) if there are downed hostiles
             if (downedHostiles && Find.TickManager.TicksGame % 300 == 0)
@@ -404,6 +420,14 @@ namespace AutoDraft
                             continue;
                         }
 
+                        // AttackMelee: don't cancel if pawn is closing distance to the right target
+                        // The pawn is actively moving toward the enemy -- let them finish approaching
+                        if (curJobDef == JobDefOf.AttackMelee && jobTarget == enemy && targetDist <= 15f)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SKIP (melee closing, dist=" + targetDist.ToString("F0") + ")");
+                            continue;
+                        }
+
                         // Target moved out of range -- cancel useless attack
                         GarrisonDebug.Log("[Garrison]   -> CANCEL " + curJobName
                             + " on " + jobTarget.LabelShort
@@ -417,6 +441,12 @@ namespace AutoDraft
                         GarrisonDebug.Log("[Garrison]   -> SKIP (combat job)");
                         continue;
                     }
+                }
+                else if (curJobDef == JobDefOf.Rescue || curJobDef == JobDefOf.TendPatient)
+                {
+                    // Rescue and tending are valid combat-adjacent jobs -- don't interrupt
+                    GarrisonDebug.Log("[Garrison]   -> SKIP (rescue/tend)");
+                    continue;
                 }
                 else if (curJobDef == JobDefOf.Goto)
                 {
@@ -459,7 +489,7 @@ namespace AutoDraft
                         {
                             GarrisonDebug.Log("[Garrison]   -> GUARD at post (enemy out of range, was " + curJobName + ")");
                             Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
-                            guardJob.expiryInterval = 300;
+                            guardJob.expiryInterval = 600;
                             pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
                         }
                         else
@@ -607,7 +637,7 @@ namespace AutoDraft
                     {
                         GarrisonDebug.Log("[Garrison]   -> GUARD at post");
                         Job guardJob = JobMaker.MakeJob(JobDefOf.Wait_Combat);
-                        guardJob.expiryInterval = 300;
+                        guardJob.expiryInterval = 600;
                         pawn.jobs.TryTakeOrderedJob(guardJob, JobTag.Misc);
                     }
                     else
