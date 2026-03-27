@@ -361,6 +361,13 @@ namespace AutoDraft
                 var comp = pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.autoDrafted) continue;
 
+                // Wake sleeping soldiers -- raid is happening, get up!
+                if (pawn.CurJob?.def == JobDefOf.LayDown && !pawn.health.InPainShock)
+                {
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    GarrisonDebug.Log("[Garrison] WOKE " + pawn.LabelShort + " (sleeping during raid)");
+                }
+
                 // Enforce Attack response -- catches soldiers from saves or manual changes
                 if (pawn.playerSettings != null
                     && pawn.playerSettings.hostilityResponse != HostilityResponseMode.Attack)
@@ -412,7 +419,7 @@ namespace AutoDraft
                         float targetDist = pawn.Position.DistanceTo(jobTarget.Position);
                         bool inRange = curJobDef == JobDefOf.AttackMelee
                             ? targetDist <= 1.5f
-                            : targetDist <= weaponRange;
+                            : targetDist <= weaponRange + 0.5f; // Small buffer for float precision
 
                         if (inRange)
                         {
@@ -452,6 +459,22 @@ namespace AutoDraft
                 {
                     GarrisonDebug.Log("[Garrison]   -> SKIP (moving)");
                     continue;
+                }
+
+                // Soldiers off-post doing non-combat jobs (eating, recreation, socializing)
+                // should return to post during active combat
+                if (!atPost && comp.combatPost.IsValid && curJobDef != null
+                    && curJobDef != JobDefOf.AttackStatic && curJobDef != JobDefOf.AttackMelee
+                    && curJobDef != JobDefOf.Goto && curJobDef != JobDefOf.Rescue
+                    && curJobDef != JobDefOf.TendPatient && curJobDef != JobDefOf.Wait_Combat)
+                {
+                    float distToPost = pawn.Position.DistanceTo(comp.combatPost);
+                    if (distToPost > 5f)
+                    {
+                        GarrisonDebug.Log("[Garrison]   -> RETURN to post (was " + curJobName + " off-post)");
+                        SendToPost(pawn, comp);
+                        continue;
+                    }
                 }
 
                 // Phase 4: retreat when badly hurt (Level 9+)
