@@ -97,9 +97,10 @@ namespace AutoDraft.Combat
                 if (enemy == null) { debugNonPawn++; continue; }
                 if (enemy.Dead) { debugDead++; continue; }
 
-                // Skip dormant/inactive enemies (sleeping mechs, ancient danger, mech clusters)
-                // They have no job and aren't moving -- not an active threat
-                if (enemy.CurJob == null && (enemy.pather == null || !enemy.pather.Moving))
+                // Use RimWorld's official threat check: ThreatDisabled returns true for
+                // dormant mechs, sleeping pawns, and any target the game considers inactive.
+                // This is how AttackTargetFinder filters targets internally.
+                if (enemy.ThreatDisabled(null))
                     continue;
 
                 if (enemy.Downed)
