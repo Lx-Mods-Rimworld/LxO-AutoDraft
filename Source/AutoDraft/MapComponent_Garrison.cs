@@ -11,7 +11,6 @@ namespace AutoDraft
     {
         private bool threatActive;
         private int lastThreatTick = -9999;
-        private int baselineHostileCount; // dormant mechs etc. -- the "normal" hostile count
         private ThreatTracker threatTracker;
         private SquadCoordination squadCoord;
 

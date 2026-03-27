@@ -114,10 +114,15 @@ namespace AutoDraft.Combat
                     continue;
                 }
 
-                // Skip dormant/inactive standing enemies (sleeping mechs, ancient danger)
-                // ThreatDisabled returns true for dormant mechs and other inactive targets.
-                // Applied AFTER downed check so downed enemies still get processed.
-                if (enemy.ThreatDisabled(null))
+                // Skip dormant mechs (ancient danger, mech clusters, inactive entities)
+                // Per Research/RimWorldEngine/Pawns/PawnClass.md: CompCanBeDormant
+                // Per Research/RimWorldEngine/Utilities/RestUtility.md: IsActivityDormant
+                // Per Research/RimWorldEngine/AI/LordSystem.md: raiders always have a Lord
+                // Do NOT use ThreatDisabled here -- it's too broad (catches spawning raiders too)
+                if (RestUtility.IsActivityDormant(enemy))
+                    continue;
+                // No lord AND no job = truly inactive (not part of any raid/event)
+                if (enemy.GetLord() == null && enemy.CurJob == null)
                     continue;
 
                 // Build EnemyInfo for active standing threats
