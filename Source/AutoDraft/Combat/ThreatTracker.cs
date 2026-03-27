@@ -49,11 +49,16 @@ namespace AutoDraft.Combat
         private int lastRaidTypeCheckTick = -1;
         private Faction playerFaction;
 
+        // Raw count: ANY hostile alive on map (before ThreatDisabled filter)
+        // Used for fast detection -- activate soldiers immediately
+        private int rawHostileCount;
+
         // Public accessors
         public List<EnemyInfo> ActiveThreats { get { return activeThreats; } }
         public List<Pawn> DownedHostiles { get { return downedHostiles; } }
         public bool HasActiveThreats { get { return activeThreats.Count > 0; } }
         public bool HasDownedHostiles { get { return downedHostiles.Count > 0; } }
+        public bool HasAnyHostile { get { return rawHostileCount > 0; } }
         public IntVec3 ThreatCenter { get { return threatCenter; } }
         public RaidType CurrentRaidType { get { return raidType; } }
 
@@ -79,6 +84,7 @@ namespace AutoDraft.Combat
 
             activeThreats.Clear();
             downedHostiles.Clear();
+            rawHostileCount = 0;
             ColonistInDanger = null;
             DangerSource = null;
             IsKidnapping = false;
@@ -96,6 +102,9 @@ namespace AutoDraft.Combat
                 Pawn enemy = target as Pawn;
                 if (enemy == null) { debugNonPawn++; continue; }
                 if (enemy.Dead) { debugDead++; continue; }
+
+                // Count ALL living hostiles before any filtering (for fast detection)
+                rawHostileCount++;
 
                 // Downed enemies: still need processing (strip/kill/capture)
                 // Check BEFORE ThreatDisabled since downed counts as threat-disabled

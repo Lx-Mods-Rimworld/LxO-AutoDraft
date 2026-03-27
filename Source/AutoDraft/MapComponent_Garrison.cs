@@ -28,7 +28,11 @@ namespace AutoDraft
             threatTracker.Refresh();
             bool downedHostiles = threatTracker.HasDownedHostiles;
 
-            // Filter threats that don't warrant garrison mobilization
+            // Fast detection: ANY hostile alive on map (before ThreatDisabled filter)
+            // This catches raiders the instant they spawn, even before the Lord assigns a job
+            bool anyHostileOnMap = threatTracker.HasAnyHostile;
+
+            // Engagement filter: only active threats for EnforcePosts targeting
             bool standingThreats = false;
             if (threatTracker.HasActiveThreats)
             {
@@ -103,7 +107,7 @@ namespace AutoDraft
                     + " soldiers=" + soldierCount + " activated=" + activatedCount);
             }
 
-            if (standingThreats && !threatActive)
+            if (anyHostileOnMap && !threatActive)
             {
                 // Threat just appeared -- activate soldiers
                 threatActive = true;
