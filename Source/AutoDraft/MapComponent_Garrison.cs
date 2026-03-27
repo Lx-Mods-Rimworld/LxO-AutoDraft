@@ -505,7 +505,9 @@ namespace AutoDraft
                     // Melee soldiers: if a colonist is under attack, charge REGARDLESS of distance
                     // Otherwise hold at post if enemy is far
                     bool meleeAndColonistInDanger = !hasRangedWeapon && colonistInDanger != null;
-                    float holdRange = hasRangedWeapon ? weaponRange : 10f;
+                    // Ranged: hold at 80% of max range (not the edge -- gives room for enemy movement)
+                    // Melee: engage within 15 tiles, chase fleeing enemies further
+                    float holdRange = hasRangedWeapon ? weaponRange * 0.8f : 15f;
                     if (atPost && dist > holdRange && dist > 1.5f && !meleeAndColonistInDanger)
                     {
                         if (curJobDef != JobDefOf.Wait_Combat)
@@ -556,16 +558,27 @@ namespace AutoDraft
                     // === MELEE SOLDIER (was melee, stayed melee) ===
                     else if (!hasRangedWeapon)
                     {
+                        // Detect fleeing enemies (moving away from colony)
+                        Pawn enemyPawn = enemy as Pawn;
+                        bool enemyFleeing = enemyPawn != null && (
+                            enemyPawn.CurJob?.def == JobDefOf.FleeAndCower
+                            || (enemyPawn.pather?.Moving == true
+                                && enemyPawn.Position.DistanceTo(threatTracker.ThreatCenter) >
+                                   enemyPawn.pather.Destination.Cell.DistanceTo(threatTracker.ThreatCenter)));
+
                         if (dist <= 1.5f)
                         {
                             GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                         }
-                        else if (dist <= 10f || meleeAndColonistInDanger)
+                        else if (dist <= 15f || meleeAndColonistInDanger || enemyFleeing)
                         {
+                            // Chase within 15 tiles, or always chase fleeing enemies / rescue
                             GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort
-                                + (meleeAndColonistInDanger ? " (colonist under fire!)" : " (close)"));
+                                + (meleeAndColonistInDanger ? " (colonist under fire!)"
+                                : enemyFleeing ? " (hunting fleeing enemy)"
+                                : " (close)"));
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                         }
@@ -598,12 +611,17 @@ namespace AutoDraft
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
-                    else if (dist <= weaponRange + 10f)
+                    else if (dist <= weaponRange + 15f)
                     {
-                        IntVec3 kitePos = GetKitePosition(pawn, enemy, weaponRange);
+                        // Move to 80% of weapon range -- not the edge where any movement causes miss
+                        float optimalRange = weaponRange * 0.8f;
+                        if (optimalRange < 5f) optimalRange = 5f;
+                        IntVec3 kitePos = GetKitePosition(pawn, enemy, optimalRange + 2f);
                         if (kitePos.IsValid)
                         {
-                            GarrisonDebug.Log("[Garrison]   -> KITE to " + kitePos + " (enemy at " + dist.ToString("F0") + ")");
+                            GarrisonDebug.Log("[Garrison]   -> ADVANCE to " + kitePos
+                                + " (optimal range " + optimalRange.ToString("F0")
+                                + ", enemy at " + dist.ToString("F0") + ")");
                             Job moveJob = JobMaker.MakeJob(JobDefOf.Goto, kitePos);
                             moveJob.locomotionUrgency = LocomotionUrgency.Sprint;
                             pawn.jobs.TryTakeOrderedJob(moveJob, JobTag.Misc);
