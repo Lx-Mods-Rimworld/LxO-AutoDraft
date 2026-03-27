@@ -114,15 +114,11 @@ namespace AutoDraft.Combat
                     continue;
                 }
 
-                // Skip dormant mechs (ancient danger, mech clusters, inactive entities)
-                // Per Research/RimWorldEngine/Pawns/PawnClass.md: CompCanBeDormant
-                // Per Research/RimWorldEngine/Utilities/RestUtility.md: IsActivityDormant
-                // Per Research/RimWorldEngine/AI/LordSystem.md: raiders always have a Lord
-                // Do NOT use ThreatDisabled here -- it's too broad (catches spawning raiders too)
-                if (RestUtility.IsActivityDormant(enemy))
-                    continue;
-                // No lord AND no job = truly inactive (not part of any raid/event)
-                if (enemy.GetLord() == null && enemy.CurJob == null)
+                // Skip threats the game considers inactive (dormant mechs, sleeping entities)
+                // ThreatDisabled is the official RimWorld API for this.
+                // Downed pawns are checked ABOVE this (line 108) so they're not affected.
+                // Logs confirm: dormant mechs have threatDisabled=True, lord=LordJob_DefendPoint
+                if (enemy.ThreatDisabled(null))
                     continue;
 
                 // Build EnemyInfo for active standing threats
