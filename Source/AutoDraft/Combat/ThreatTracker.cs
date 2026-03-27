@@ -88,11 +88,14 @@ namespace AutoDraft.Combat
             // Use attackTargetsCache for efficient hostile enumeration
             playerFaction = Find.FactionManager?.OfPlayer;
             if (playerFaction == null) return;
+
+            int debugTotal = 0, debugNonPawn = 0, debugDead = 0;
             foreach (IAttackTarget target in map.attackTargetsCache.TargetsHostileToFaction(playerFaction))
             {
+                debugTotal++;
                 Pawn enemy = target as Pawn;
-                if (enemy == null) continue;
-                if (enemy.Dead) continue;
+                if (enemy == null) { debugNonPawn++; continue; }
+                if (enemy.Dead) { debugDead++; continue; }
 
                 if (enemy.Downed)
                 {
@@ -118,6 +121,18 @@ namespace AutoDraft.Combat
                 threatCenter = new IntVec3(sumX / threatCount, 0, sumZ / threatCount);
             else
                 threatCenter = IntVec3.Invalid;
+
+            // Debug: log what the cache returned vs what we kept
+            if (tick % 300 == 0 && (debugTotal > 0 || activeThreats.Count > 0 || downedHostiles.Count > 0))
+            {
+                GarrisonDebug.Log("[Garrison] ThreatTracker: cache=" + debugTotal
+                    + " nonPawn=" + debugNonPawn + " dead=" + debugDead
+                    + " standing=" + activeThreats.Count + " downed=" + downedHostiles.Count
+                    + (activeThreats.Count > 0 ? " first=" + activeThreats[0].pawn.LabelShort
+                        + " dead?=" + activeThreats[0].pawn.Dead
+                        + " downed?=" + activeThreats[0].pawn.Downed
+                        + " spawned?=" + activeThreats[0].pawn.Spawned : ""));
+            }
 
             // Raid type detection (every 300 ticks)
             if (tick - lastRaidTypeCheckTick > 300)
