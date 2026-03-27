@@ -93,53 +93,48 @@ namespace AutoDraft.Combat
             IntVec3 bestCell = IntVec3.Invalid;
             float bestScore = float.MinValue;
 
-            // Search cells within 10 tiles of anchor
-            int radius = 10;
-            int anchorX = anchor.x;
-            int anchorZ = anchor.z;
-
-            for (int dx = -radius; dx <= radius; dx++)
+            // Use GenRadial for sorted-by-distance search (no sqrt needed for distance)
+            foreach (IntVec3 cell in GenRadial.RadialCellsAround(anchor, 10f, true))
             {
-                for (int dz = -radius; dz <= radius; dz++)
+                if (!cell.InBounds(map)) continue;
+                if (!cell.Standable(map)) continue;
+
+                // Must be reachable quickly
+                float distFromSoldier = soldier.Position.DistanceTo(cell);
+                if (distFromSoldier > 15f) continue;
+
+                int dx = cell.x - anchor.x;
+                int dz = cell.z - anchor.z;
+
+                // Score: prefer cells in the "away from threat" direction
+                float awayScore = 0f;
+                if (awayDir.x != 0 || awayDir.z != 0)
                 {
-                    IntVec3 cell = new IntVec3(anchorX + dx, 0, anchorZ + dz);
-                    if (!cell.InBounds(map)) continue;
-                    if (!cell.Standable(map)) continue;
-
-                    // Must be reachable quickly
-                    float distFromSoldier = soldier.Position.DistanceTo(cell);
-                    if (distFromSoldier > 15f) continue;
-
-                    // Score: prefer cells in the "away from threat" direction
-                    float awayScore = 0f;
-                    if (awayDir.x != 0 || awayDir.z != 0)
+                    // Dot product with away direction (normalized-ish)
+                    float awayLen = UnityEngine.Mathf.Sqrt(awayDir.x * awayDir.x + awayDir.z * awayDir.z);
+                    if (awayLen > 0.1f)
                     {
-                        // Dot product with away direction (normalized-ish)
-                        float awayLen = UnityEngine.Mathf.Sqrt(awayDir.x * awayDir.x + awayDir.z * awayDir.z);
-                        if (awayLen > 0.1f)
-                        {
-                            awayScore = (dx * awayDir.x + dz * awayDir.z) / awayLen;
-                        }
+                        awayScore = (dx * awayDir.x + dz * awayDir.z) / awayLen;
                     }
+                }
 
-                    // Cover score from threat direction
-                    float coverScore = 0f;
-                    if (threatDir.IsValid)
-                    {
-                        coverScore = CoverUtility.CalculateOverallBlockChance(cell, threatDir, map) * 20f;
-                    }
+                // Cover score from threat direction
+                float coverScore = 0f;
+                if (threatDir.IsValid)
+                {
+                    coverScore = CoverUtility.CalculateOverallBlockChance(cell, threatDir, map) * 20f;
+                }
 
-                    // Prefer staying near anchor (don't run to the far side of the map)
-                    float anchorDist = anchor.DistanceTo(cell);
-                    float anchorPenalty = anchorDist * 0.5f;
+                // Prefer staying near anchor (don't run to the far side of the map)
+                float anchorDist = anchor.DistanceTo(cell);
+                float anchorPenalty = anchorDist * 0.5f;
 
-                    float score = awayScore * 3f + coverScore - anchorPenalty;
+                float score = awayScore * 3f + coverScore - anchorPenalty;
 
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestCell = cell;
-                    }
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestCell = cell;
                 }
             }
 

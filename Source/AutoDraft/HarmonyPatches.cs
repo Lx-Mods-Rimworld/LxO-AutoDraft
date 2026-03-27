@@ -36,21 +36,23 @@ namespace AutoDraft
     [HarmonyPatch(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.StartJob))]
     public static class Patch_BlockFlee
     {
-        public static bool Prefix(Pawn_JobTracker __instance, Job newJob)
+        public static bool Prefix(Pawn_JobTracker __instance, Job newJob, Pawn ___pawn)
         {
             try
             {
                 if (newJob?.def != JobDefOf.FleeAndCower) return true;
+                if (___pawn == null) return true;
 
-                Pawn pawn = Traverse.Create(__instance).Field("pawn").GetValue<Pawn>();
-                if (pawn == null) return true;
-
-                var comp = pawn.GetComp<CompSoldier>();
+                var comp = ___pawn.GetComp<CompSoldier>();
                 if (comp == null || !comp.isSoldier || !comp.autoDrafted) return true;
 
-                // Soldier should fight, not flee. Block the flee job.
-                GarrisonDebug.Log("[Garrison] BLOCKED flee for soldier " + pawn.LabelShort);
-                return false;
+                // Only block flee if soldier has a current job (isn't in limbo)
+                if (__instance.curJob != null)
+                {
+                    GarrisonDebug.Log("[Garrison] BLOCKED flee for soldier " + ___pawn.LabelShort);
+                    return false; // Keep current job, don't flee
+                }
+                return true; // No current job -- let vanilla handle it
             }
             catch { return true; }
         }

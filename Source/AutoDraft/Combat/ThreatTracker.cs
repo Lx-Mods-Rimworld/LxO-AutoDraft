@@ -47,6 +47,7 @@ namespace AutoDraft.Combat
         private RaidType raidType;
         private int lastRefreshTick = -1;
         private int lastRaidTypeCheckTick = -1;
+        private Faction playerFaction;
 
         // Public accessors
         public List<EnemyInfo> ActiveThreats { get { return activeThreats; } }
@@ -85,7 +86,9 @@ namespace AutoDraft.Combat
             int sumX = 0, sumZ = 0, threatCount = 0;
 
             // Use attackTargetsCache for efficient hostile enumeration
-            foreach (IAttackTarget target in map.attackTargetsCache.TargetsHostileToFaction(Faction.OfPlayer))
+            playerFaction = Find.FactionManager?.OfPlayer;
+            if (playerFaction == null) return;
+            foreach (IAttackTarget target in map.attackTargetsCache.TargetsHostileToFaction(playerFaction))
             {
                 Pawn enemy = target as Pawn;
                 if (enemy == null) continue;
@@ -186,7 +189,7 @@ namespace AutoDraft.Combat
             info.isKidnapping = false;
             info.carriedColonist = null;
             Thing carried = enemy.carryTracker?.CarriedThing;
-            if (carried is Pawn carriedPawn && carriedPawn.Faction == Faction.OfPlayer)
+            if (carried is Pawn carriedPawn && carriedPawn.Faction == playerFaction)
             {
                 info.isKidnapping = true;
                 info.carriedColonist = carriedPawn;
@@ -198,7 +201,7 @@ namespace AutoDraft.Combat
             {
                 Thing targetThing = enemy.CurJob.targetA.Thing;
                 Pawn targetPawn = targetThing as Pawn;
-                if (targetPawn != null && targetPawn.Faction == Faction.OfPlayer && !targetPawn.Dead)
+                if (targetPawn != null && targetPawn.Faction == playerFaction && !targetPawn.Dead)
                 {
                     info.targetingColonist = targetPawn;
                 }

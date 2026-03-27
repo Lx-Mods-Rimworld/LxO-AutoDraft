@@ -53,7 +53,8 @@ namespace AutoDraft
         {
             if (!AutoDraftSettings.enabled) yield break;
             if (!(parent is Pawn)) yield break; // Skip corpses
-            if (Pawn.Faction != Faction.OfPlayer) yield break;
+            Faction playerFaction = Find.FactionManager?.OfPlayer;
+            if (playerFaction == null || Pawn.Faction != playerFaction) yield break;
             if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) yield break;
 
             // Toggle soldier status

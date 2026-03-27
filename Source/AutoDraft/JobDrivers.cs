@@ -54,7 +54,7 @@ namespace AutoDraft
                 GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
                 // Direct kill -- deal lethal damage
-                target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 0f, -1f, pawn));
+                target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 999f, -1f, pawn));
             };
             killToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return killToil;

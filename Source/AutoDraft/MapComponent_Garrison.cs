@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using AutoDraft.Combat;
 using RimWorld;
 using Verse;
@@ -134,7 +133,7 @@ namespace AutoDraft
             JobDef skDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
             JobDef scDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
 
-            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var curJob = soldier.CurJob;
@@ -152,7 +151,7 @@ namespace AutoDraft
 
             // Second: assign soldiers to unhandled downed enemies
             // For downed cleanup, soldiers CAN be interrupted from normal work
-            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
@@ -178,10 +177,9 @@ namespace AutoDraft
         {
             Pawn best = null;
             float bestDist = float.MaxValue;
-            foreach (Pawn enemy in map.mapPawns.AllPawnsSpawned.ToList())
+            foreach (Pawn enemy in threatTracker.DownedHostiles)
             {
-                if (enemy.Dead || !enemy.Downed) continue;
-                if (!enemy.HostileTo(Faction.OfPlayer)) continue;
+                if (enemy.Dead) continue;
                 if (exclude.Contains(enemy.thingIDNumber)) continue;
                 float dist = soldier.Position.DistanceTo(enemy.Position);
                 if (dist < bestDist)
@@ -287,7 +285,7 @@ namespace AutoDraft
         {
             int activated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player drafted manually, don't touch
@@ -353,7 +351,7 @@ namespace AutoDraft
 
             squadCoord.CoordinateSquad(soldierList, threatTracker.ActiveThreats, maxCombatLevel);
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player has manual control
@@ -593,9 +591,16 @@ namespace AutoDraft
                         if (dist <= 1.5f)
                         {
                             // Already in melee -- fight
-                            GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
-                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == enemy)
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> SKIP (already melee " + enemy.LabelShort + ")");
+                            }
+                            else
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
+                                Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                                pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            }
                         }
                         else if (inFriendlyFireZone && !enemyBreachingLine)
                         {
@@ -606,26 +611,47 @@ namespace AutoDraft
                         }
                         else if (enemyBreachingLine || dist <= 8f)
                         {
-                            // Enemy is close to ranged soldiers or close to us -- intercept!
-                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
-                                + (enemyBreachingLine ? " (protecting shooters)" : " (close)"));
-                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == enemy)
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> SKIP (already intercepting " + enemy.LabelShort + ")");
+                            }
+                            else
+                            {
+                                // Enemy is close to ranged soldiers or close to us -- intercept!
+                                GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
+                                    + (enemyBreachingLine ? " (protecting shooters)" : " (close)"));
+                                Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                                pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            }
                         }
                         else if (colonistInDanger != null && dist <= 12f)
                         {
-                            // Colonist in danger AND enemy is close enough to intercept -- go help
-                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
-                                + " (protecting " + colonistInDanger.LabelShort + ", dist=" + dist.ToString("F0") + ")");
-                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == enemy)
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> SKIP (already protecting " + colonistInDanger.LabelShort + ")");
+                            }
+                            else
+                            {
+                                // Colonist in danger AND enemy is close enough to intercept -- go help
+                                GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
+                                    + " (protecting " + colonistInDanger.LabelShort + ", dist=" + dist.ToString("F0") + ")");
+                                Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                                pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            }
                         }
                         else if (enemyFleeing && !threatTracker.HasActiveThreats)
                         {
-                            // All threats gone, hunt the fleeing ones
-                            GarrisonDebug.Log("[Garrison]   -> HUNT " + enemy.LabelShort + " (fleeing, no other threats)");
-                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == enemy)
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> SKIP (already hunting " + enemy.LabelShort + ")");
+                            }
+                            else
+                            {
+                                // All threats gone, hunt the fleeing ones
+                                GarrisonDebug.Log("[Garrison]   -> HUNT " + enemy.LabelShort + " (fleeing, no other threats)");
+                                Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                                pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                            }
                         }
                         else if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
                         {
@@ -637,12 +663,27 @@ namespace AutoDraft
                     // === RANGED SOLDIER (primary ranged) ===
                     else if (dist <= 1.5f)
                     {
-                        GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
-                        Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
-                        pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == enemy)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SKIP (already melee " + enemy.LabelShort + ")");
+                        }
+                        else
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
                     }
                     else if (dist <= weaponRange)
                     {
+                        // Don't interrupt verb warmup or burst -- let them finish the shot
+                        var primaryVerb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
+                        if (primaryVerb != null && primaryVerb.WarmingUp)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SKIP (verb warming up)");
+                            continue;
+                        }
+
                         // Phase 4: seek better position if Level 3+ and at/near post
                         if (combatLevel >= 3 && comp.combatPost.IsValid)
                         {
@@ -658,9 +699,18 @@ namespace AutoDraft
                                 continue;
                             }
                         }
-                        GarrisonDebug.Log("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
-                        Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
-                        pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
+
+                        // Don't re-issue AttackStatic if already shooting this target
+                        if (pawn.CurJob?.def == JobDefOf.AttackStatic && pawn.CurJob?.targetA.Thing == enemy)
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SKIP (already shooting " + enemy.LabelShort + ")");
+                        }
+                        else
+                        {
+                            GarrisonDebug.Log("[Garrison]   -> SHOOT " + enemy.LabelShort + " dist=" + dist.ToString("F0"));
+                            Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
+                            pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
+                        }
                     }
                     else if (dist <= weaponRange + 15f)
                     {
@@ -710,11 +760,18 @@ namespace AutoDraft
                                 }
                             }
                             // Melee or no kite position: charge directly
-                            GarrisonDebug.Log("[Garrison]   -> AID (charge) " + colonistInDanger.LabelShort
-                                + " against " + dangerSource.LabelShort
-                                + (isKidnapping ? " (RESCUE)" : ""));
-                            Job chargeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, dangerSource);
-                            pawn.jobs.TryTakeOrderedJob(chargeJob, JobTag.Misc);
+                            if (pawn.CurJob?.def == JobDefOf.AttackMelee && pawn.CurJob?.targetA.Thing == dangerSource)
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> SKIP (already charging " + dangerSource.LabelShort + ")");
+                            }
+                            else
+                            {
+                                GarrisonDebug.Log("[Garrison]   -> AID (charge) " + colonistInDanger.LabelShort
+                                    + " against " + dangerSource.LabelShort
+                                    + (isKidnapping ? " (RESCUE)" : ""));
+                                Job chargeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, dangerSource);
+                                pawn.jobs.TryTakeOrderedJob(chargeJob, JobTag.Misc);
+                            }
                             continue;
                         }
                     }
@@ -791,7 +848,7 @@ namespace AutoDraft
         {
             int deactivated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed) continue;
 
@@ -820,7 +877,7 @@ namespace AutoDraft
 
         private void FleeNonCombatants()
         {
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 if (pawn.Dead || pawn.Downed || pawn.Drafted) continue;
 
@@ -846,19 +903,25 @@ namespace AutoDraft
 
             IntVec3 bestCell = IntVec3.Invalid;
             float bestDist = 0f;
+            int reachChecks = 0;
 
             foreach (IntVec3 cell in map.areaManager.Home.ActiveCells)
             {
                 if (!cell.Roofed(map)) continue;
                 if (!cell.Standable(map)) continue;
-                if (!pawn.CanReach(cell, PathEndMode.OnCell, Danger.Some)) continue;
 
                 float dist = cell.DistanceTo(threatCenter);
-                if (dist > bestDist)
+                if (dist <= bestDist) continue; // Only check cells further from threat
+
+                if (reachChecks >= 30) break; // Limit expensive CanReach calls
+                if (!pawn.CanReach(cell, PathEndMode.OnCell, Danger.Some))
                 {
-                    bestDist = dist;
-                    bestCell = cell;
+                    reachChecks++;
+                    continue;
                 }
+
+                bestDist = dist;
+                bestCell = cell;
             }
             return bestCell;
         }
