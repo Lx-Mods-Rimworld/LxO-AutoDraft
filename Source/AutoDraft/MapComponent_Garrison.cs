@@ -56,6 +56,7 @@ namespace AutoDraft
                     if (c != null && c.autoDrafted) activatedCount++;
                 }
                 GarrisonDebug.Log("[Garrison] TICK state: standing=" + standingThreats
+                    + " (raw=" + threatTracker.ActiveThreats.Count + ")"
                     + " downed=" + downedHostiles + " threatActive=" + threatActive
                     + " soldiers=" + soldierCount + " activated=" + activatedCount);
             }
@@ -73,6 +74,18 @@ namespace AutoDraft
             {
                 // Active combat -- defend at posts, attack in range
                 lastThreatTick = Find.TickManager.TicksGame;
+
+                // Safety: re-activate soldiers if threatActive but none are autoDrafted
+                // This handles save/load mid-combat where threatActive=true but soldiers=deactivated
+                bool anyActivated = false;
+                foreach (var p in map.mapPawns.FreeColonistsSpawned)
+                {
+                    var c = p.GetComp<CompSoldier>();
+                    if (c != null && c.autoDrafted) { anyActivated = true; break; }
+                }
+                if (!anyActivated)
+                    ActivateSoldiers();
+
                 EnforcePosts();
             }
             else if (!standingThreats && downedHostiles)
