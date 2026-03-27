@@ -122,16 +122,20 @@ namespace AutoDraft.Combat
             else
                 threatCenter = IntVec3.Invalid;
 
-            // Debug: log what the cache returned vs what we kept
+            // Debug: log EVERY threat with ID to check for duplicates
             if (tick % 300 == 0 && (debugTotal > 0 || activeThreats.Count > 0 || downedHostiles.Count > 0))
             {
+                string threatList = "";
+                for (int d = 0; d < activeThreats.Count; d++)
+                {
+                    var t = activeThreats[d];
+                    threatList += " [" + t.pawn.LabelShort + " id=" + t.pawn.thingIDNumber
+                        + " pos=" + t.pawn.Position + " job=" + (t.pawn.CurJob?.def?.defName ?? "NONE") + "]";
+                }
                 GarrisonDebug.Log("[Garrison] ThreatTracker: cache=" + debugTotal
                     + " nonPawn=" + debugNonPawn + " dead=" + debugDead
                     + " standing=" + activeThreats.Count + " downed=" + downedHostiles.Count
-                    + (activeThreats.Count > 0 ? " first=" + activeThreats[0].pawn.LabelShort
-                        + " dead?=" + activeThreats[0].pawn.Dead
-                        + " downed?=" + activeThreats[0].pawn.Downed
-                        + " spawned?=" + activeThreats[0].pawn.Spawned : ""));
+                    + threatList);
             }
 
             // Raid type detection (every 300 ticks)
