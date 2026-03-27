@@ -555,32 +555,83 @@ namespace AutoDraft
                         Job attackJob = JobMaker.MakeJob(JobDefOf.AttackStatic, enemy);
                         pawn.jobs.TryTakeOrderedJob(attackJob, JobTag.Misc);
                     }
-                    // === MELEE SOLDIER (was melee, stayed melee) ===
+                    // === MELEE SOLDIER: BODYGUARD ROLE ===
+                    // Melee soldiers protect the ranged line. They do NOT charge past shooters.
+                    // They intercept enemies that get close to the ranged soldiers.
+                    // They hunt fleeing enemies only when no active threat to the line.
                     else if (!hasRangedWeapon)
                     {
-                        // Detect fleeing enemies (moving away from colony)
                         Pawn enemyPawn = enemy as Pawn;
-                        bool enemyFleeing = enemyPawn != null && (
-                            enemyPawn.CurJob?.def == JobDefOf.FleeAndCower
-                            || (enemyPawn.pather?.Moving == true
-                                && enemyPawn.Position.DistanceTo(threatTracker.ThreatCenter) >
-                                   enemyPawn.pather.Destination.Cell.DistanceTo(threatTracker.ThreatCenter)));
+                        bool enemyFleeing = enemyPawn != null && enemyPawn.CurJob?.def == JobDefOf.FleeAndCower;
+
+                        // Check if enemy is close to ANY ranged soldier (breaching the line)
+                        bool enemyBreachingLine = false;
+                        foreach (var entry in soldierList)
+                        {
+                            if (entry.pawn == pawn) continue;
+                            bool entryRanged = entry.pawn.equipment?.Primary?.def?.IsRangedWeapon ?? false;
+                            if (!entryRanged) continue;
+                            float enemyToShooter = entry.pawn.Position.DistanceTo(enemy.Position);
+                            if (enemyToShooter <= 8f)
+                            {
+                                enemyBreachingLine = true;
+                                break;
+                            }
+                        }
+
+                        // Check if melee soldier is between ranged soldiers and enemy
+                        // (would cause friendly fire)
+                        bool inFriendlyFireZone = false;
+                        if (comp.combatPost.IsValid)
+                        {
+                            // If soldier is further from post than the enemy, they're in the fire zone
+                            float soldierToPost = pawn.Position.DistanceTo(comp.combatPost);
+                            float enemyToPost = enemy.Position.DistanceTo(comp.combatPost);
+                            if (soldierToPost > enemyToPost + 3f)
+                                inFriendlyFireZone = true;
+                        }
 
                         if (dist <= 1.5f)
                         {
+                            // Already in melee -- fight
                             GarrisonDebug.Log("[Garrison]   -> MELEE " + enemy.LabelShort);
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
                         }
-                        else if (dist <= 15f || meleeAndColonistInDanger || enemyFleeing)
+                        else if (inFriendlyFireZone && !enemyBreachingLine)
                         {
-                            // Chase within 15 tiles, or always chase fleeing enemies / rescue
-                            GarrisonDebug.Log("[Garrison]   -> CHARGE " + enemy.LabelShort
-                                + (meleeAndColonistInDanger ? " (colonist under fire!)"
-                                : enemyFleeing ? " (hunting fleeing enemy)"
-                                : " (close)"));
+                            // In friendly fire zone and enemy isn't close to shooters -- fall back to post
+                            GarrisonDebug.Log("[Garrison]   -> FALLBACK (in friendly fire zone)");
+                            if (comp.combatPost.IsValid)
+                                SendToPost(pawn, comp);
+                        }
+                        else if (enemyBreachingLine || dist <= 8f)
+                        {
+                            // Enemy is close to ranged soldiers or close to us -- intercept!
+                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort
+                                + (enemyBreachingLine ? " (protecting shooters)" : " (close)"));
                             Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
                             pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (meleeAndColonistInDanger)
+                        {
+                            // Colonist under fire -- rush to help
+                            GarrisonDebug.Log("[Garrison]   -> INTERCEPT " + enemy.LabelShort + " (colonist under fire!)");
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (enemyFleeing && !threatTracker.HasActiveThreats)
+                        {
+                            // All threats gone, hunt the fleeing ones
+                            GarrisonDebug.Log("[Garrison]   -> HUNT " + enemy.LabelShort + " (fleeing, no other threats)");
+                            Job meleeJob = JobMaker.MakeJob(JobDefOf.AttackMelee, enemy);
+                            pawn.jobs.TryTakeOrderedJob(meleeJob, JobTag.Misc);
+                        }
+                        else if (comp.combatPost.IsValid && pawn.Position.DistanceTo(comp.combatPost) > 3f)
+                        {
+                            // Hold at post -- wait for enemy to come to us
+                            GarrisonDebug.Log("[Garrison]   -> HOLD near post (bodyguard)");
+                            SendToPost(pawn, comp);
                         }
                     }
                     // === RANGED SOLDIER (primary ranged) ===
