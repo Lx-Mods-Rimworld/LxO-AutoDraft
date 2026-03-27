@@ -28,20 +28,48 @@ namespace AutoDraft
             threatTracker.Refresh();
             bool downedHostiles = threatTracker.HasDownedHostiles;
 
-            // Filter trivial threats: single small manhunter animal doesn't warrant garrison mobilization
+            // Filter threats that don't warrant garrison mobilization
             bool standingThreats = false;
             if (threatTracker.HasActiveThreats)
             {
                 var threats = threatTracker.ActiveThreats;
+
+                // Single small manhunter animal -- vanilla handles it
                 if (threats.Count == 1 && threats[0].pawn.RaceProps.Animal
                     && threats[0].pawn.RaceProps.baseBodySize < 1f)
                 {
-                    // Single small animal (hare, squirrel, etc.) -- let vanilla hostility response handle it
                     standingThreats = false;
                 }
                 else
                 {
-                    standingThreats = true;
+                    // Check if ALL remaining enemies are fleeing far from colony
+                    // (walking to map edge, >50 tiles from any soldier post)
+                    bool allFleeing = true;
+                    for (int i = 0; i < threats.Count; i++)
+                    {
+                        Pawn enemy = threats[i].pawn;
+                        // Not fleeing if: in combat job, or close to colony
+                        bool isFleeing = enemy.CurJob != null && (
+                            enemy.CurJob.def == JobDefOf.Goto ||
+                            enemy.CurJob.def == JobDefOf.FleeAndCower ||
+                            (enemy.CurJob.def.defName.Contains("Exit") || enemy.CurJob.def.defName.Contains("Leave")));
+
+                        if (!isFleeing)
+                        {
+                            // Check distance: if any enemy is within 50 tiles of threat center, not all fleeing
+                            float distToCenter = enemy.Position.DistanceTo(threatTracker.ThreatCenter.IsValid
+                                ? threatTracker.ThreatCenter : map.Center);
+                            // If close or attacking, real threat
+                            if (distToCenter < 50f || enemy.CurJob?.def == JobDefOf.AttackMelee
+                                || enemy.CurJob?.def == JobDefOf.AttackStatic)
+                            {
+                                allFleeing = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    standingThreats = !allFleeing;
                 }
             }
 
