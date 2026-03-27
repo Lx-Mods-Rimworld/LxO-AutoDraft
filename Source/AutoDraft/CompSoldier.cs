@@ -53,6 +53,7 @@ namespace AutoDraft
         {
             if (!AutoDraftSettings.enabled) yield break;
             if (!(parent is Pawn)) yield break; // Skip corpses
+            if (Pawn.RaceProps == null || !Pawn.RaceProps.Humanlike) yield break; // No mechs/animals
             Faction playerFaction = Find.FactionManager?.OfPlayer;
             if (playerFaction == null || Pawn.Faction != playerFaction) yield break;
             if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) yield break;
