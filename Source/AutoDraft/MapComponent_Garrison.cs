@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using AutoDraft.Combat;
 using RimWorld;
 using Verse;
@@ -146,7 +147,7 @@ namespace AutoDraft
             JobDef skDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
             JobDef scDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
 
-            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var curJob = soldier.CurJob;
@@ -164,7 +165,7 @@ namespace AutoDraft
 
             // Second: assign soldiers to unhandled downed enemies
             // For downed cleanup, soldiers CAN be interrupted from normal work
-            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn soldier in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (soldier.Dead || soldier.Downed) continue;
                 var comp = soldier.GetComp<CompSoldier>();
@@ -298,7 +299,7 @@ namespace AutoDraft
         {
             int activated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player drafted manually, don't touch
@@ -364,7 +365,7 @@ namespace AutoDraft
 
             squadCoord.CoordinateSquad(soldierList, threatTracker.ActiveThreats, maxCombatLevel);
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
                 if (pawn.Drafted) continue; // Player has manual control
@@ -861,7 +862,7 @@ namespace AutoDraft
         {
             int deactivated = 0;
 
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
 
@@ -890,7 +891,7 @@ namespace AutoDraft
 
         private void FleeNonCombatants()
         {
-            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed || pawn.Drafted) continue;
 
