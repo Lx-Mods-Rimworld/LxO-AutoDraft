@@ -106,7 +106,21 @@ namespace AutoDraft.Combat
                 // Count ALL living hostiles before any filtering (for fast detection)
                 rawHostileCount++;
 
-                // Downed enemies: still need processing (strip/kill/capture)
+                // Crawling enemies (1.6): downed but still mobile. Treat as active threat
+                // so soldiers attack them with melee instead of trying to execute.
+                // Per Research/RimWorldEngine/PawnAndCoreSystems.md: pawn.Crawling
+                if (enemy.Downed && enemy.Crawling)
+                {
+                    // Goes to activeThreats, not downedHostiles -- soldiers melee them
+                    EnemyInfo crawlInfo = BuildEnemyInfo(enemy);
+                    activeThreats.Add(crawlInfo);
+                    sumX += enemy.Position.x;
+                    sumZ += enemy.Position.z;
+                    threatCount++;
+                    continue;
+                }
+
+                // Fully downed (not crawling): strip/kill/capture
                 // Check BEFORE ThreatDisabled since downed counts as threat-disabled
                 if (enemy.Downed)
                 {
