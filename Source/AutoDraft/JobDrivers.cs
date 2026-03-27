@@ -44,20 +44,25 @@ namespace AutoDraft
             stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return stripToil;
 
-            // 3. Kill the target (melee attack until dead)
-            Toil killToil = new Toil();
-            killToil.initAction = () =>
+            // 3. Execute using vanilla's execution system (knife animation, proper kill)
+            Toil executeToil = new Toil();
+            executeToil.initAction = () =>
             {
                 Pawn target = job.targetA.Thing as Pawn;
                 if (target == null || target.Dead) return;
 
                 GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
-                // Direct kill -- deal lethal damage
-                target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 999f, -1f, pawn));
+                // Use vanilla ExecuteEntity (humanlike) or Slaughter (animal)
+                JobDef executeDef = target.RaceProps.Animal
+                    ? JobDefOf.Slaughter
+                    : JobDefOf.ExecuteEntity;
+
+                Job executeJob = JobMaker.MakeJob(executeDef, target);
+                pawn.jobs.StartJob(executeJob, JobCondition.Succeeded);
             };
-            killToil.defaultCompleteMode = ToilCompleteMode.Instant;
-            yield return killToil;
+            executeToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return executeToil;
         }
     }
 
