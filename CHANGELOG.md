@@ -2,6 +2,24 @@
 
 All notable changes to this mod will be documented in this file.
 
+## [2.0.1] - 2026-03-27
+
+### Fixes
+- Dormant mechanoids (ancient danger, mech clusters) no longer keep garrison permanently mobilized. Uses RimWorld's ThreatDisabled API to properly identify inactive threats.
+- Downed enemies are now correctly detected for strip/kill/capture even with the dormant filter active.
+- Soldiers properly stand down after all active threats are eliminated. Added safety timeout for edge cases.
+- Fleeing enemies walking to map edge no longer keep soldiers at posts forever.
+- Soldiers now finish off downed enemies during active combat, not only after all standing threats are gone.
+- Fixed soldiers not activating after save/load mid-combat.
+- Fixed Collection modified crash from removing .ToList() too aggressively. Restored on state-modifying loops.
+- Execution damage now uses 999 armor penetration (was 0, could be deflected by heavy armor).
+- Replaced Traverse reflection with zero-cost Harmony field injection in flee blocking patch.
+- Soldiers no longer get interrupted mid-aiming. Verb warmup state is checked before reassignment.
+- FindRetreatPosition uses GenRadial instead of brute-force grid search.
+- FindSafeSpot limits expensive CanReach calls to 30 max.
+- Soldier gizmo no longer shows on mechanoids or animals. (reported by @Cutie Scavenger)
+- Faction.OfPlayer null-safe in ThreatTracker and CompSoldier.
+
 ## [2.0.0] - 2026-03-27 -- Smart Soldiers (Combat AI Rework)
 
 **Early release -- rework begun, many more tests needed. First look is promising. Please report any issues!**
