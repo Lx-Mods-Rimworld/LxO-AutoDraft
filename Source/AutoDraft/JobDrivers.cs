@@ -54,22 +54,14 @@ namespace AutoDraft
 
                 GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
-                // Try vanilla execution jobs (may be null if DLC not active)
+                // Use vanilla execution jobs from Core (no DLC needed)
+                // PrisonerExecution = humanlike, Slaughter = animals
                 JobDef executeDef = target.RaceProps.Animal
                     ? JobDefOf.Slaughter
-                    : DefDatabase<JobDef>.GetNamedSilentFail("ExecuteEntity")
-                      ?? DefDatabase<JobDef>.GetNamedSilentFail("Execute");
+                    : JobDefOf.PrisonerExecution;
 
-                if (executeDef != null)
-                {
-                    Job executeJob = JobMaker.MakeJob(executeDef, target);
-                    pawn.jobs.jobQueue.EnqueueFirst(executeJob);
-                }
-                else
-                {
-                    // Fallback: direct kill if no execution JobDef available
-                    target.Kill(new DamageInfo(DamageDefOf.Blunt, 999f, 999f, -1f, pawn));
-                }
+                Job executeJob = JobMaker.MakeJob(executeDef, target);
+                pawn.jobs.jobQueue.EnqueueFirst(executeJob);
             };
             queueExecuteToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return queueExecuteToil;
