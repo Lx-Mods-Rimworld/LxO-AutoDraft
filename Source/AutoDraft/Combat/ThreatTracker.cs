@@ -97,19 +97,21 @@ namespace AutoDraft.Combat
                 if (enemy == null) { debugNonPawn++; continue; }
                 if (enemy.Dead) { debugDead++; continue; }
 
-                // Use RimWorld's official threat check: ThreatDisabled returns true for
-                // dormant mechs, sleeping pawns, and any target the game considers inactive.
-                // This is how AttackTargetFinder filters targets internally.
-                if (enemy.ThreatDisabled(null))
-                    continue;
-
+                // Downed enemies: still need processing (strip/kill/capture)
+                // Check BEFORE ThreatDisabled since downed counts as threat-disabled
                 if (enemy.Downed)
                 {
                     downedHostiles.Add(enemy);
                     continue;
                 }
 
-                // Build EnemyInfo
+                // Skip dormant/inactive standing enemies (sleeping mechs, ancient danger)
+                // ThreatDisabled returns true for dormant mechs and other inactive targets.
+                // Applied AFTER downed check so downed enemies still get processed.
+                if (enemy.ThreatDisabled(null))
+                    continue;
+
+                // Build EnemyInfo for active standing threats
                 EnemyInfo info = BuildEnemyInfo(enemy);
                 activeThreats.Add(info);
 
