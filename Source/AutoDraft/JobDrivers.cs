@@ -24,7 +24,13 @@ namespace AutoDraft
         protected override IEnumerable<Toil> MakeNewToils()
         {
             this.FailOnDestroyedOrNull(TargetInd);
-            this.FailOnAggroMentalStateAndHostile(TargetInd);
+            // Only fail on aggro mental state if target is not downed (downed pawns can't attack)
+            this.FailOn(() =>
+            {
+                Pawn target = job.targetA.Thing as Pawn;
+                return target != null && !target.Downed && target.InAggroMentalState
+                    && target.HostileTo(pawn);
+            });
 
             // 1. Go to the downed target
             yield return Toils_Goto.GotoThing(TargetInd, PathEndMode.ClosestTouch);
@@ -112,7 +118,7 @@ namespace AutoDraft
             // 4. Carry to prison bed
             yield return Toils_Goto.GotoThing(BedInd, PathEndMode.InteractionCell);
 
-            // 5. Place in bed
+            // 5. Place in bed and set prisoner status
             Toil placeToil = new Toil();
             placeToil.initAction = () =>
             {
@@ -120,9 +126,28 @@ namespace AutoDraft
                 Building_Bed bed = job.targetB.Thing as Building_Bed;
                 if (target == null || bed == null) return;
 
-                pawn.carryTracker.TryDropCarriedThing(bed.Position, ThingPlaceMode.Direct, out Thing _);
-                target.guest?.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
-                GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " captured " + target.LabelShort);
+                Thing droppedThing;
+                pawn.carryTracker.TryDropCarriedThing(bed.Position, ThingPlaceMode.Direct, out droppedThing);
+
+                if (droppedThing is Pawn prisoner)
+                {
+                    prisoner.guest?.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+
+                    // Assign the prisoner to this bed so they stay in it
+                    if (bed.OwnersForReading != null && !bed.OwnersForReading.Contains(prisoner))
+                    {
+                        bed.CompAssignableToPawn?.TryAssignPawn(prisoner);
+                    }
+
+                    // If the prisoner is not downed, force them to rest
+                    if (!prisoner.Downed && !prisoner.Dead && prisoner.jobs != null)
+                    {
+                        Job restJob = JobMaker.MakeJob(JobDefOf.LayDown, bed);
+                        prisoner.jobs.StartJob(restJob, JobCondition.InterruptForced);
+                    }
+
+                    GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " captured " + prisoner.LabelShort);
+                }
             };
             placeToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return placeToil;

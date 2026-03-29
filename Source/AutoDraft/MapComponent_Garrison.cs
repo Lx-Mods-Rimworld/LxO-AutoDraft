@@ -973,7 +973,7 @@ namespace AutoDraft
                 float dist = cell.DistanceTo(threatCenter);
                 if (dist <= bestDist) continue; // Only check cells further from threat
 
-                if (reachChecks >= 30) break; // Limit expensive CanReach calls
+                if (reachChecks >= 100) break; // Limit expensive CanReach calls
                 if (!pawn.CanReach(cell, PathEndMode.OnCell, Danger.Some))
                 {
                     reachChecks++;
