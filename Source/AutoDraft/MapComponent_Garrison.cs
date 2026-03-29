@@ -336,9 +336,19 @@ namespace AutoDraft
         {
             if (soldier.WorkTagIsDisabled(WorkTags.Violent)) return;
 
-            // Just kill downed hostile animals -- they'll be butchered later
-            Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, animal);
-            soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+            // Use StripThenKill for consistent direct execution
+            // AttackMelee on crawling animals can fail to finish (1.6 crawling)
+            JobDef stripKillDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
+            if (stripKillDef != null)
+            {
+                Job job = JobMaker.MakeJob(stripKillDef, animal);
+                soldier.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+            }
+            else
+            {
+                Job killJob = JobMaker.MakeJob(JobDefOf.AttackMelee, animal);
+                soldier.jobs.TryTakeOrderedJob(killJob, JobTag.Misc);
+            }
         }
 
         private void ActivateSoldiers()
@@ -411,6 +421,10 @@ namespace AutoDraft
 
             squadCoord.CoordinateSquad(soldierList, threatTracker.ActiveThreats, maxCombatLevel);
 
+            // Cache custom job defs outside the per-soldier loop
+            JobDef skDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenKill");
+            JobDef scDef = DefDatabase<JobDef>.GetNamedSilentFail("AD_StripThenCapture");
+
             foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned.ToList())
             {
                 if (pawn.Dead || pawn.Downed) continue;
@@ -467,6 +481,14 @@ namespace AutoDraft
                     + " ranged=" + hasRangedWeapon
                     + " inDanger=" + (colonistInDanger?.LabelShort ?? "NONE")
                     + (isKidnapping ? " KIDNAP!" : ""));
+
+                // Don't interrupt strip/kill or strip/capture -- these are multi-toil
+                // jobs that must run to completion (strip then execute in one job)
+                if (curJobDef == skDef || curJobDef == scDef)
+                {
+                    GarrisonDebug.Log("[Garrison]   -> SKIP (strip/kill job)");
+                    continue;
+                }
 
                 // Don't interrupt active combat jobs -- UNLESS target is out of weapon range
                 if (curJobDef == JobDefOf.AttackStatic || curJobDef == JobDefOf.AttackMelee)

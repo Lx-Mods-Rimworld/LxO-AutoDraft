@@ -50,27 +50,22 @@ namespace AutoDraft
             stripToil.defaultCompleteMode = ToilCompleteMode.Instant;
             yield return stripToil;
 
-            // 3. Queue vanilla execution as next job, then end our job cleanly
-            // Can't call StartJob from inside a toil -- queue it and let our job finish
-            Toil queueExecuteToil = new Toil();
-            queueExecuteToil.initAction = () =>
+            // 3. Execute the target directly
+            // PrisonerExecution requires prisoner status, Slaughter requires designation
+            // -- neither applies to hostile downed pawns. Kill directly instead.
+            Toil executeToil = new Toil();
+            executeToil.initAction = () =>
             {
                 Pawn target = job.targetA.Thing as Pawn;
                 if (target == null || target.Dead) return;
 
                 GarrisonDebug.Log("[Garrison] " + pawn.LabelShort + " executing " + target.LabelShort);
 
-                // Use vanilla execution jobs from Core (no DLC needed)
-                // PrisonerExecution = humanlike, Slaughter = animals
-                JobDef executeDef = target.RaceProps.Animal
-                    ? JobDefOf.Slaughter
-                    : JobDefOf.PrisonerExecution;
-
-                Job executeJob = JobMaker.MakeJob(executeDef, target);
-                pawn.jobs.jobQueue.EnqueueFirst(executeJob);
+                DamageInfo dinfo = new DamageInfo(DamageDefOf.ExecutionCut, 9999f, 999f, -1f, pawn);
+                target.Kill(dinfo);
             };
-            queueExecuteToil.defaultCompleteMode = ToilCompleteMode.Instant;
-            yield return queueExecuteToil;
+            executeToil.defaultCompleteMode = ToilCompleteMode.Instant;
+            yield return executeToil;
         }
     }
 

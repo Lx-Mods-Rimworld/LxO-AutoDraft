@@ -2,6 +2,13 @@
 
 All notable changes to this mod will be documented in this file.
 
+## [2.0.2] - 2026-03-29
+
+### Fixes
+- Strip and Kill now works: replaced broken PrisonerExecution/Slaughter queue (required prisoner status or designation that hostile downed pawns don't have) with direct ExecutionCut kill.
+- EnforcePosts no longer interrupts StripThenKill/StripThenCapture jobs. Soldiers finish the full strip+execute sequence without being pulled back to post.
+- Downed animals now use StripThenKill for consistent direct execution instead of AttackMelee, fixing 1.6 crawling interactions.
+
 ## [2.0.1] - 2026-03-27
 
 ### Fixes
