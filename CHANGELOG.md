@@ -2,6 +2,11 @@
 
 All notable changes to this mod will be documented in this file.
 
+## [2.0.3] - 2026-04-01
+
+### Fixes
+- Fixed dangerous solo animals (wolves, cougars, lynx) being ignored by auto-draft. Previously any single animal with body size under 1.0 was skipped. Now only truly harmless animals (rats, squirrels, chickens) are ignored.
+
 ## [2.0.2] - 2026-03-29
 
 ### Fixes
