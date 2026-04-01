@@ -34,9 +34,12 @@ namespace AutoDraft
             {
                 var threats = threatTracker.ActiveThreats;
 
-                // Single small manhunter animal -- vanilla handles it
+                // Single trivial manhunter animal -- vanilla handles it
+                // Only skip if it's truly harmless (low DPS AND small body).
+                // Wolves, cougars, etc. are dangerous even solo.
                 if (threats.Count == 1 && threats[0].pawn.RaceProps.Animal
-                    && threats[0].pawn.RaceProps.baseBodySize < 1f)
+                    && threats[0].dps < 4f
+                    && threats[0].pawn.RaceProps.baseBodySize < 0.4f)
                 {
                     standingThreats = false;
                 }
